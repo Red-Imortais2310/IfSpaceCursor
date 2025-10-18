@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IfSpace - Login</title>
+    <link rel="stylesheet" href="styles/login.css">
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <div class="header">
+                <h1>IfSpace</h1>
+                <p>Conecte-se com o mundo</p>
+            </div>
+            
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <input type="email" id="email" placeholder="Email ou telefone" required>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="password" placeholder="Senha" required>
+                </div>
+                
+                <div class="form-options">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="remember">
+                        <span class="checkmark"></span>
+                        Salvar senha
+                    </label>
+                </div>
+                
+                <button type="submit" class="login-btn">Entrar</button>
+                
+                <div class="form-links">
+                    <a href="#" id="forgotPassword">Esqueceu sua senha?</a>
+                    <a href="#" id="register">Cadastrar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="scripts/login.js"></script>
+</body>
+</html>

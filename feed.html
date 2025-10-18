@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IfSpace - Feed</title>
+    <link rel="stylesheet" href="styles/feed.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>IfSpace</h1>
+            </div>
+            <div class="search-bar">
+                <input type="text" placeholder="Pesquisar no IfSpace...">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" id="messagesBtn">
+                    <i class="fas fa-comments"></i>
+                </button>
+                <button class="header-btn">
+                    <i class="fas fa-bell"></i>
+                </button>
+                <button class="header-btn">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="sidebar-left">
+            <div class="user-info">
+                <img src="https://via.placeholder.com/50" alt="Perfil" class="profile-img">
+                <span>João Silva</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    Início
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    Amigos
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-video"></i>
+                    Vídeos
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-store"></i>
+                    Marketplace
+                </a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <!-- Stories Section -->
+            <div class="stories-section">
+                <div class="story-container">
+                    <div class="story-item create-story">
+                        <div class="story-content">
+                            <i class="fas fa-plus"></i>
+                            <span>Criar Story</span>
+                        </div>
+                    </div>
+                    <div class="story-item">
+                        <img src="https://via.placeholder.com/60" alt="Story">
+                        <span>Maria</span>
+                    </div>
+                    <div class="story-item">
+                        <img src="https://via.placeholder.com/60" alt="Story">
+                        <span>Pedro</span>
+                    </div>
+                    <div class="story-item">
+                        <img src="https://via.placeholder.com/60" alt="Story">
+                        <span>Ana</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Post -->
+            <div class="create-post">
+                <div class="post-header">
+                    <img src="https://via.placeholder.com/40" alt="Perfil" class="profile-img">
+                    <input type="text" placeholder="No que você está pensando?" id="postText">
+                </div>
+                <div class="post-actions">
+                    <button class="action-btn" id="liveBtn">
+                        <i class="fas fa-video"></i>
+                        Live
+                    </button>
+                    <button class="action-btn" id="photoBtn">
+                        <i class="fas fa-image"></i>
+                        Foto/Imagem
+                    </button>
+                    <button class="action-btn" id="feelingBtn">
+                        <i class="fas fa-smile"></i>
+                        Sentimento
+                    </button>
+                </div>
+            </div>
+
+            <!-- Posts Feed -->
+            <div class="posts-feed" id="postsFeed">
+                <!-- Posts will be dynamically added here -->
+            </div>
+        </div>
+
+        <div class="sidebar-right">
+            <div class="contacts-section">
+                <h3>Mensagens</h3>
+                <div class="contacts-list" id="contactsList">
+                    <!-- 15 contacts will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feeling Modal -->
+    <div class="modal" id="feelingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Como você está se sentindo?</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="emojis-grid">
+                <div class="emoji-item" data-emoji="😊">😊</div>
+                <div class="emoji-item" data-emoji="😢">😢</div>
+                <div class="emoji-item" data-emoji="😍">😍</div>
+                <div class="emoji-item" data-emoji="🤔">🤔</div>
+                <div class="emoji-item" data-emoji="😴">😴</div>
+                <div class="emoji-item" data-emoji="😎">😎</div>
+                <div class="emoji-item" data-emoji="🤗">🤗</div>
+                <div class="emoji-item" data-emoji="😮">😮</div>
+                <div class="emoji-item" data-emoji="🤩">🤩</div>
+                <div class="emoji-item" data-emoji="😤">😤</div>
+                <div class="emoji-item" data-emoji="🥳">🥳</div>
+                <div class="emoji-item" data-emoji="😌">😌</div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 IfSpace. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+
+    <script src="scripts/feed.js"></script>
+</body>
+</html>

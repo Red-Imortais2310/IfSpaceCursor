@@ -1,0 +1,161 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #00a400 0%, #00d4aa 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+}
+
+.register-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    padding: 40px;
+    text-align: center;
+}
+
+.header h1 {
+    color: #00a400;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.header h2 {
+    color: #333;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.header p {
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e1e1e1;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #00a400;
+}
+
+.form-options {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 8px;
+    width: auto;
+    margin-top: 2px;
+}
+
+.checkbox-container a {
+    color: #00a400;
+    text-decoration: none;
+}
+
+.checkbox-container a:hover {
+    text-decoration: underline;
+}
+
+.register-btn {
+    width: 100%;
+    padding: 15px;
+    background: #00a400;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.register-btn:hover {
+    background: #008a00;
+}
+
+.form-links {
+    display: flex;
+    justify-content: center;
+}
+
+.form-links a {
+    color: #00a400;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.form-links a:hover {
+    color: #008a00;
+    text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .register-card {
+        padding: 30px 20px;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}

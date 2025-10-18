@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IfSpace - Cadastro</title>
+    <link rel="stylesheet" href="styles/cadastro.css">
+</head>
+<body>
+    <div class="container">
+        <div class="register-card">
+            <div class="header">
+                <h1>IfSpace</h1>
+                <h2>Criar Conta</h2>
+                <p>É rápido e fácil</p>
+            </div>
+            
+            <form class="register-form" id="registerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" id="firstName" placeholder="Nome" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="lastName" placeholder="Sobrenome" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <input type="email" id="email" placeholder="Email" required>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="password" placeholder="Nova senha" required>
+                </div>
+                
+                <div class="form-group">
+                    <input type="date" id="birthday" required>
+                </div>
+                
+                <div class="form-group">
+                    <select id="gender" required>
+                        <option value="">Selecione o gênero</option>
+                        <option value="masculino">Masculino</option>
+                        <option value="feminino">Feminino</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                
+                <div class="form-options">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="terms" required>
+                        <span class="checkmark"></span>
+                        Eu aceito os <a href="#">Termos de Uso</a> e <a href="#">Política de Privacidade</a>
+                    </label>
+                </div>
+                
+                <button type="submit" class="register-btn">Cadastrar</button>
+                
+                <div class="form-links">
+                    <a href="index.html">Já tem uma conta? Faça login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="scripts/cadastro.js"></script>
+</body>
+</html>
