@@ -33,6 +33,15 @@
                     <input type="password" id="password" placeholder="Nova senha" required>
                 </div>
                 
+                <!-- Campo de Upload de Foto de Perfil -->
+                <div class="form-group">
+                    <label for="profilePicture">Foto de Perfil (Opcional):</label>
+                    <input type="file" id="profilePicture" accept="image/*">
+                    <div id="profilePicturePreview" style="margin-top: 10px; text-align: center;">
+                        <img id="imagePreview" src="https://via.placeholder.com/100?text=Pré-visualização" alt="Pré-visualização da Foto de Perfil" style="max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc;">
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <input type="date" id="birthday" required>
                 </div>
@@ -54,6 +63,12 @@
                     </label>
                 </div>
                 
+                <!-- Divs para mensagens de erro e loading, criadas para o JavaScript -->
+                <div id="errorMessage" style="color: red; font-weight: bold; margin-top: 10px; display: none;"></div>
+                <div id="loadingState" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); color: white; font-size: 1.2em; display: flex; justify-content: center; align-items: center; z-index: 1000; flex-direction: column; display: none;">
+                    <span id="loadingMessage">Carregando...</span>
+                </div>
+
                 <button type="submit" class="register-btn">Cadastrar</button>
                 
                 <div class="form-links">
@@ -64,280 +79,51 @@
     </div>
     
     <!-- === SNIPPET DO FIREBASE === -->
-      <!-- === SNIPPET DO FIREBASE === -->
     <script type="module">
-    console.log("-> Firebase snippet starting execution."); // DEBUG
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
-    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    // IMPORTANTE: Adicione as importações do Firestore aqui!
-    import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"; 
+        console.log("-> Firebase snippet starting execution in cadastro.html.");
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"; 
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDQ_hTliPlLpW2W6ACCoka1HD5So0K9b9Q",
-      authDomain: "redeifspace.firebaseapp.com",
-      projectId: "redeifspace",
-      storageBucket: "redeifspace.firebasestorage.app",
-      messagingSenderId: "237485490117",
-      appId: "1:237485490117:web:6ad953ad50e6097cb7d5ac",
-      measurementId: "G-JKRWBEBJKV"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyDQ_hTliPlLpW2W6ACCoka1HD5So0K9b9Q",
+            authDomain: "redeifspace.firebaseapp.com",
+            projectId: "redeifspace",
+            storageBucket: "redeifspace.firebasestorage.app",
+            messagingSenderId: "237485490117",
+            appId: "1:237485490117:web:6ad953ad50e6097cb7d5ac",
+            measurementId: "G-JKRWBEBJKV"
+        };
 
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth(app);
-    // IMPORTANTE: Inicialize o Firestore aqui!
-    const db = getFirestore(app);
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
-    window.firebaseAuth = auth;
-    window.firebaseCreateUserWithEmailAndPassword = createUserWithEmailAndPassword;
-    // IMPORTANTE: Torne o Firestore e as funções necessárias globais!
-    window.firebaseFirestore = db;
-    window.firebaseFirestoreCollection = collection;
-    window.firebaseFirestoreDoc = doc;
-    window.firebaseFirestoreSetDoc = setDoc;
+        // Torna as funções e objetos do Firebase globais para serem acessados pelo scripts/cadastro.js
+        window.firebaseAuth = auth;
+        window.firebaseCreateUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.firebaseFirestore = db;
+        window.firebaseFirestoreCollection = collection;
+        window.firebaseFirestoreDoc = doc;
+        window.firebaseFirestoreSetDoc = setDoc;
+        window.firebaseStorage = storage;
+        window.firebaseStorageRef = ref;
+        window.firebaseStorageUploadBytes = uploadBytes;
+        window.firebaseStorageGetDownloadURL = getDownloadURL;
+        window.firebaseTimestamp = { now: () => new Date() }; // Função simples para timestamp
 
-    console.log("-> Firebase snippet finished execution. Firestore and Auth available."); // DEBUG
+        console.log("-> Firebase snippet finished execution in cadastro.html. Auth, Firestore and Storage available.");
     </script>
 
-    <!-- === SEU SCRIPT DE CADASTRO.JS (COM DEPURACÃO) === -->
-    <script>
-        console.log("-> cadastro.js starting execution (before DOMContentLoaded)."); // DEBUG
-
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOMContentLoaded fired in cadastro.js."); // DEBUG
-
-            const registerForm = document.getElementById('registerForm');
-            const firstName = document.getElementById('firstName');
-            const lastName = document.getElementById('lastName');
-            const email = document.getElementById('email');
-            const password = document.getElementById('password');
-            const birthday = document.getElementById('birthday');
-            const gender = document.getElementById('gender');
-            const terms = document.getElementById('terms');
-
-            if (!registerForm) { 
-                console.error("ERROR: 'registerForm' (ID) not found in the HTML! Submit listener NOT attached."); 
-                return; 
-            } else {
-                console.log("'registerForm' element found."); 
-            }
-
-            registerForm.addEventListener('submit', async function(e) {
-                console.log("Submit event fired on registerForm."); 
-                e.preventDefault();
-                
-                console.log("Calling validateForm()..."); 
-                if (!validateForm()) {
-                    console.log("validateForm() returned false. Registro abortado."); 
-                    return;
-                }
-                console.log("validateForm() returned true. Proceeding with Firebase registration..."); 
-                
-                showLoadingState();
-                console.log("showLoadingState() called. Attempting Firebase registration..."); 
-                
-                           try {
-                // 1. Criar o usuário no Firebase Authentication
-                const userCredential = await window.firebaseCreateUserWithEmailAndPassword(window.firebaseAuth, email.value.trim(), password.value);
-                const user = userCredential.user; // O objeto do usuário criado
-                console.log('User successfully registered in Firebase Auth:', user.uid); // DEBUG
-
-                // 2. Salvar dados adicionais do usuário no Cloud Firestore
-                const userDocRef = window.firebaseFirestoreDoc(window.firebaseFirestore, "users", user.uid);
-                await window.firebaseFirestoreSetDoc(userDocRef, {
-                    uid: user.uid,
-                    firstName: firstName.value.trim(),
-                    lastName: lastName.value.trim(),
-                    email: email.value.trim(),
-                    birthday: birthday.value,
-                    gender: gender.value,
-                    createdAt: new Date() // Opcional: registrar a data de criação
-                });
-                console.log('User data successfully saved to Firestore for UID:', user.uid); // DEBUG
-
-                hideLoadingState();
-                alert('¡Cuenta creada exitosamente! Redirecionando para o login.');
-                window.location.href = 'index.html';
-                
-            } catch (error) {
-                // ... (o seu bloco catch para erros do Firebase Auth permanece o mesmo) ...
-                hideLoadingState();
-                console.error('Firebase registration error (catch block):', error.code, error.message); 
-
-                let friendlyErrorMessage = 'Erro ao criar conta. Por favor, tente novamente.';
-                if (error.code === 'auth/email-already-in-use') {
-                    friendlyErrorMessage = 'Este e-mail já está cadastrado. Tente fazer login ou use outro e-mail.';
-                    showFieldError(email, friendlyErrorMessage);
-                } else if (error.code === 'auth/invalid-email') {
-                    friendlyErrorMessage = 'O formato do e-mail é inválido.';
-                    showFieldError(email, friendlyErrorMessage);
-                } else if (error.code === 'auth/weak-password') {
-                    friendlyErrorMessage = 'A senha é muito fraca. Use pelo menos 6 caracteres e combine letras, números e símbolos.';
-                    showFieldError(password, friendlyErrorMessage);
-                } else if (error.code === 'auth/operation-not-allowed') {
-                    friendlyErrorMessage = 'O registro de e-mail/senha não está ativado. Entre em contato com o suporte.';
-                } else {
-                     friendlyErrorMessage += ` (Detalhe: ${error.message})`;
-                }
-                alert(friendlyErrorMessage);
-            } finally {
-                hideLoadingState();
-            }
-            });
-
-            // Resto do seu código JS (validateForm, showFieldError, etc.)
-            function validateForm() {
-                console.log("Executing validateForm()...");
-                let isValid = true;
-                
-                if (firstName.value.trim().length < 2) {
-                    showFieldError(firstName, 'El nombre debe tener al menos 2 caracteres');
-                    isValid = false;
-                } else {
-                    clearFieldError(firstName);
-                }
-                
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email.value.trim())) {
-                    showFieldError(email, 'Por favor, ingrese un email válido');
-                    isValid = false;
-                } else {
-                    clearFieldError(email);
-                }
-
-                if (password.value.length < 6) {
-                    showFieldError(password, 'La contraseña debe tener al menos 6 caracteres');
-                    isValid = false;
-                } else {
-                    clearFieldError(password);
-                }
-                
-                if (!terms.checked) {
-                    showFieldError(terms, 'Debe aceptar los términos y condiciones');
-                    isValid = false;
-                } else {
-                    clearFieldError(terms);
-                }
-                
-                console.log("validateForm() finished, returning:", isValid);
-                return isValid;
-            }
-
-            function showFieldError(field, message) {
-                clearFieldError(field);
-                field.style.borderColor = '#e74c3c';
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'field-error';
-                errorDiv.textContent = message;
-                errorDiv.style.color = '#e74c3c';
-                errorDiv.style.fontSize = '12px';
-                errorDiv.style.marginTop = '5px';
-                if (field.type === 'checkbox') {
-                    field.parentNode.parentNode.appendChild(errorDiv);
-                } else {
-                    field.parentNode.appendChild(errorDiv);
-                }
-            }
-
-            function clearFieldError(field) {
-                field.style.borderColor = '#e1e1e1';
-                const parent = field.type === 'checkbox' ? field.parentNode.parentNode : field.parentNode;
-                const existingError = parent.querySelector('.field-error');
-                if (existingError) {
-                    existingError.remove();
-                }
-            }
-
-            function showLoadingState() {
-                const submitBtn = registerForm.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Criando conta...';
-                    submitBtn.style.opacity = '0.7';
-                }
-            }
-
-            function hideLoadingState() {
-                const submitBtn = registerForm.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Cadastrar';
-                    submitBtn.style.opacity = '1';
-                }
-            }
-
-            firstName.addEventListener('blur', function() {
-                if (this.value.trim().length < 2) {
-                    showFieldError(this, 'El nombre debe tener al menos 2 caracteres');
-                } else {
-                    clearFieldError(this);
-                }
-            });
-
-            lastName.addEventListener('blur', function() {
-                if (this.value.trim().length < 2) {
-                    showFieldError(this, 'El apellido debe tener al menos 2 caracteres');
-                } else {
-                    clearFieldError(this);
-                }
-            });
-
-            email.addEventListener('blur', function() {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(this.value.trim())) {
-                    showFieldError(this, 'Por favor, ingrese un email válido');
-                } else {
-                    clearFieldError(this);
-                }
-            });
-
-            password.addEventListener('blur', function() {
-                if (this.value.length < 6) {
-                    showFieldError(this, 'La contraseña debe tener al menos 6 caracteres');
-                } else {
-                    clearFieldError(this);
-                }
-            });
-
-            birthday.addEventListener('blur', function() {
-                if (!this.value) {
-                    showFieldError(this, 'Por favor, seleccione su fecha de nacimiento');
-                } else {
-                    const birthDate = new Date(this.value);
-                    const today = new Date();
-                    const age = today.getFullYear() - birthDate.getFullYear();
-                    const monthDiff = today.getMonth() - birthDate.getMonth();
-                    
-                    if (age < 13 || (age === 13 && monthDiff < 0)) {
-                        showFieldError(this, 'Debe tener al menos 13 años para registrarse');
-                    } else {
-                        clearFieldError(this);
-                    }
-                }
-            });
-
-            gender.addEventListener('blur', function() {
-                if (!this.value) {
-                    showFieldError(this, 'Por favor, seleccione su género');
-                } else {
-                    clearFieldError(this);
-                }
-            });
-
-            terms.addEventListener('change', function() {
-                if (!this.checked) {
-                    showFieldError(this, 'Debe aceptar los términos y condiciones');
-                } else {
-                    clearFieldError(this);
-                }
-            });
-
-            firstName.focus();
-        });
-    </script>
+    <!-- === SEU SCRIPT EXTERNO DE CADASTRO.JS === -->
+    <script src="scripts/cadastro.js"></script>
 </body>
 </html>
+
 
 
 

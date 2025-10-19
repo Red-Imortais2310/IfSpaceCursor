@@ -1,235 +1,261 @@
 // scripts/cadastro.js
 
+console.log("-> cadastro.js starting execution.");
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOMContentLoaded fired in cadastro.js.");
+
+    // Referências aos elementos do DOM
     const registerForm = document.getElementById('registerForm');
-    const firstName = document.getElementById('firstName');
-    const lastName = document.getElementById('lastName');
-    const email = document.getElementById('email');
-    const password = document.getElementById('password');
-    const birthday = document.getElementById('birthday');
-    const gender = document.getElementById('gender');
-    const terms = document.getElementById('terms');
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput = document.getElementById('lastName');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const birthdayInput = document.getElementById('birthday');
+    const genderSelect = document.getElementById('gender');
+    const profilePictureInput = document.getElementById('profilePicture');
+    const imagePreview = document.getElementById('imagePreview');
+    const termsCheckbox = document.getElementById('terms');
+    const errorMessageDiv = document.getElementById('errorMessage'); // Div de erro no HTML
+    const loadingStateDiv = document.getElementById('loadingState'); // Div de loading no HTML
+    const loadingMessageSpan = document.getElementById('loadingMessage'); // Mensagem de loading no HTML
 
-    // Manejar el envío del formulario de registro
-    registerForm.addEventListener('submit', async function(e) { // Adicione 'async' aqui!
-        e.preventDefault();
-        
-        // Validar todos los campos antes de tentar o registro no Firebase
-        if (!validateForm()) {
-            return; // Se a validação falhar, para por aqui.
-        }
-        
-        // Mostrar estado de carregamento enquanto o Firebase processa
-        showLoadingState();
-        
-        try {
-            // Chamada REAL para o Firebase Authentication
-            // window.firebaseAuth foi inicializado no seu index.html
-            const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(email.value.trim(), password.value);
-
-            // Se o registro no Firebase foi bem-sucedido:
-            // TODO: AQUI VOCÊ PODE ADICIONAR CÓDIGO PARA SALVAR firstName, lastName, birthday, gender
-            // Isso seria feito usando o Cloud Firestore, mas vamos focar na autenticação por enquanto.
-            // Exemplo (será feito em outro momento):
-            // const db = window.firebaseFirestore; // Supondo que você também exporte getFirestore como window.firebaseFirestore
-            // await db.collection('users').doc(userCredential.user.uid).set({
-            //     firstName: firstName.value.trim(),
-            //     lastName: lastName.value.trim(),
-            //     email: email.value.trim(),
-            //     birthday: birthday.value,
-            //     gender: gender.value
-            // });
-
-            hideLoadingState(); // Esconde o carregamento
-            alert('¡Cuenta creada exitosamente! Redirigindo para o login.'); // Mensagem de sucesso
-            window.location.href = 'index.html'; // Redireciona para a página de login
-            
-        } catch (error) {
-            // Se houve um erro no Firebase
-            hideLoadingState(); // Esconde o carregamento
-            console.error('Erro de registro no Firebase:', error.code, error.message);
-
-            let friendlyErrorMessage = 'Erro ao criar conta. Por favor, tente novamente.';
-            if (error.code === 'auth/email-already-in-use') {
-                friendlyErrorMessage = 'Este e-mail já está cadastrado. Tente fazer login ou use outro e-mail.';
-                showFieldError(email, friendlyErrorMessage); // Exibe erro no campo email
-            } else if (error.code === 'auth/invalid-email') {
-                friendlyErrorMessage = 'O formato do e-mail é inválido.';
-                showFieldError(email, friendlyErrorMessage); // Exibe erro no campo email
-            } else if (error.code === 'auth/weak-password') {
-                friendlyErrorMessage = 'A senha é muito fraca. Use pelo menos 6 caracteres e combine letras, números e símbolos.';
-                showFieldError(password, friendlyErrorMessage); // Exibe erro no campo senha
-            } else if (error.code === 'auth/operation-not-allowed') {
-                friendlyErrorMessage = 'O registro de e-mail/senha não está ativado. Entre em contato com o suporte.';
+    // Pré-visualização da imagem de perfil
+    if (profilePictureInput && imagePreview) {
+        profilePictureInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imagePreview.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.src = "https://via.placeholder.com/100?text=Pré-visualização"; // Volta para a imagem padrão
             }
-            alert(friendlyErrorMessage); // Alerta genérico se não for um erro específico de campo
-        }
-    });
+        });
+    }
 
-    // Seus métodos de validação de formulário (validateForm, showFieldError, clearFieldError)
-    // Seus métodos de estado de carregamento (showLoadingState, hideLoadingState)
-    // Suas validações em tempo real (EventListeners de 'blur')
-    // Auto-focus em primeiro campo
-    // ... TODO: COLE TODO O RESTO DO SEU SCRIPT A PARTIR DAQUI ...
-    // ... (incluindo as funções validateForm, showFieldError, clearFieldError,
-    // ... showLoadingState, hideLoadingState e todos os seus addEventListener de 'blur')
-    // ...
+    if (registerForm) {
+        console.log("'registerForm' element found.");
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log("Submit event fired on registerForm.");
+
+            hideErrorMessage();
+
+            console.log("Calling validateForm()...");
+            if (!validateForm()) {
+                console.log("validateForm() returned false. Stopping registration.");
+                return;
+            }
+            console.log("validateForm() returned true. Proceeding with Firebase registration...");
+
+            showLoadingState("Registrando usuário...");
+
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const firstName = firstNameInput.value;
+            const lastName = lastNameInput.value;
+            const birthday = birthdayInput.value;
+            const gender = genderSelect.value;
+            const profilePictureFile = profilePictureInput.files[0];
+
+            try {
+                // 1. Criar usuário no Firebase Authentication
+                const userCredential = await window.firebaseCreateUserWithEmailAndPassword(window.firebaseAuth, email, password);
+                const user = userCredential.user;
+                console.log("User successfully registered in Firebase Auth:", user.uid);
+                showLoadingState("Usuário autenticado. Enviando foto de perfil...");
+
+                let profilePictureUrl = '';
+                if (profilePictureFile) {
+                    // 2. Fazer upload da foto de perfil para o Cloud Storage
+                    const storageRef = window.firebaseStorageRef(window.firebaseStorage, `profilePictures/${user.uid}/${profilePictureFile.name}`);
+                    const uploadTask = await window.firebaseStorageUploadBytes(storageRef, profilePictureFile);
+                    profilePictureUrl = await window.firebaseStorageGetDownloadURL(uploadTask.ref);
+                    console.log("Profile picture uploaded to Cloud Storage:", profilePictureUrl);
+                } else {
+                    console.log("No profile picture selected. Using default.");
+                    // Opcional: definir uma URL de imagem padrão aqui se não houver upload
+                    // profilePictureUrl = 'URL_DA_SUA_IMAGEM_PADRAO'; 
+                }
+
+                // 3. Salvar dados adicionais do usuário (e a URL da foto) no Cloud Firestore
+                await window.firebaseFirestoreSetDoc(window.firebaseFirestoreDoc(window.firebaseFirestore, "users", user.uid), {
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    birthday: birthday,
+                    gender: gender,
+                    profilePictureUrl: profilePictureUrl,
+                    createdAt: window.firebaseTimestamp.now()
+                });
+                console.log("User data successfully saved to Firestore for UID:", user.uid);
+                showLoadingState("Dados de perfil salvos. Redirecionando...");
+
+                alert("¡Cuenta creada exitosamente! Redirecionando para o login.");
+                window.location.href = 'index.html';
+
+            } catch (error) {
+                console.error("Firebase registration error:", error);
+                let displayMessage = "Ocorreu um erro ao registrar a conta. Por favor, tente novamente.";
+
+                // Erros comuns do Firebase Authentication
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        displayMessage = 'Este e-mail já está em uso por outra conta.';
+                        showFieldError(emailInput, displayMessage);
+                        break;
+                    case 'auth/invalid-email':
+                        displayMessage = 'O formato do e-mail é inválido.';
+                        showFieldError(emailInput, displayMessage);
+                        break;
+                    case 'auth/operation-not-allowed':
+                        displayMessage = 'Autenticação por e-mail/senha não está ativada.';
+                        break;
+                    case 'auth/weak-password':
+                        displayMessage = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+                        showFieldError(passwordInput, displayMessage);
+                        break;
+                    default:
+                        displayMessage = `Erro desconhecido: ${error.message}`;
+                        break;
+                }
+                showErrorMessage(displayMessage); // Usa a div de erro
+            } finally {
+                hideLoadingState();
+            }
+        });
+    } else {
+        console.error("Element with ID 'registerForm' not found.");
+    }
+
     function validateForm() {
+        console.log("Executing validateForm()...");
         let isValid = true;
-        // ... sua lógica de validação ...
-        // Exemplo:
-        if (firstName.value.trim().length < 2) {
-            showFieldError(firstName, 'El nombre debe tener al menos 2 caracteres');
+        
+        // Validações
+        if (firstNameInput.value.trim().length < 2) {
+            showFieldError(firstNameInput, 'O nome deve ter pelo menos 2 caracteres');
             isValid = false;
         } else {
-            clearFieldError(firstName);
-        }
-        // ... e assim por diante para todos os campos ...
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Replicando para clareza
-        if (!emailRegex.test(email.value.trim())) {
-            showFieldError(email, 'Por favor, ingrese un email válido');
-            isValid = false;
-        } else {
-            clearFieldError(email);
-        }
-
-        if (password.value.length < 6) { // Firebase exige mínimo de 6
-            showFieldError(password, 'La contraseña debe tener al menos 6 caracteres');
-            isValid = false;
-        } else {
-            clearFieldError(password);
+            clearFieldError(firstNameInput);
         }
         
-        // Validação de termos e condições, etc.
-        if (!terms.checked) {
-            showFieldError(terms, 'Debe aceptar los términos y condiciones');
+        if (lastNameInput.value.trim().length < 2) {
+            showFieldError(lastNameInput, 'O sobrenome deve ter pelo menos 2 caracteres');
             isValid = false;
         } else {
-            clearFieldError(terms);
+            clearFieldError(lastNameInput);
         }
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailInput.value.trim())) {
+            showFieldError(emailInput, 'Por favor, insira um e-mail válido');
+            isValid = false;
+        } else {
+            clearFieldError(emailInput);
+        }
+
+        if (passwordInput.value.length < 6) {
+            showFieldError(passwordInput, 'A senha deve ter pelo menos 6 caracteres');
+            isValid = false;
+        } else {
+            clearFieldError(passwordInput);
+        }
+        
+        if (!birthdayInput.value) {
+            showFieldError(birthdayInput, 'Por favor, selecione sua data de nascimento');
+            isValid = false;
+        } else {
+            const birthDate = new Date(birthdayInput.value);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            if (age < 13 || (age === 13 && monthDiff < 0) || (age === 13 && monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                showFieldError(birthdayInput, 'Você deve ter pelo menos 13 anos para se registrar');
+                isValid = false;
+            } else {
+                clearFieldError(birthdayInput);
+            }
+        }
+
+        if (!genderSelect.value || genderSelect.value === "") {
+            showFieldError(genderSelect, 'Por favor, selecione seu gênero');
+            isValid = false;
+        } else {
+            clearFieldError(genderSelect);
+        }
+
+        if (!termsCheckbox || !termsCheckbox.checked) {
+            showFieldError(termsCheckbox, 'Você deve aceitar os termos e condições');
+            isValid = false;
+        } else {
+            clearFieldError(termsCheckbox);
+        }
+        
+        console.log("validateForm() finished, returning:", isValid);
         return isValid;
     }
 
+    // Funções de feedback visual
     function showFieldError(field, message) {
         clearFieldError(field);
+        const parent = field.type === 'checkbox' ? field.parentNode.parentNode : field.parentNode;
         
         field.style.borderColor = '#e74c3c';
-        
+
         const errorDiv = document.createElement('div');
         errorDiv.className = 'field-error';
         errorDiv.textContent = message;
         errorDiv.style.color = '#e74c3c';
         errorDiv.style.fontSize = '12px';
         errorDiv.style.marginTop = '5px';
-        
-        // Insere o erro abaixo do campo, se for um input ou select
-        if (field.type === 'checkbox') { // Para checkbox como "terms"
-            field.parentNode.parentNode.appendChild(errorDiv); // Pode precisar ajustar o parentNode
-        } else {
-            field.parentNode.appendChild(errorDiv);
-        }
+        errorDiv.style.marginBottom = '5px';
+
+        parent.appendChild(errorDiv);
     }
 
     function clearFieldError(field) {
-        field.style.borderColor = '#e1e1e1';
-        
-        // Limpa o erro do checkbox de forma diferente se necessário
         const parent = field.type === 'checkbox' ? field.parentNode.parentNode : field.parentNode;
         const existingError = parent.querySelector('.field-error');
-
         if (existingError) {
             existingError.remove();
         }
+        field.style.borderColor = '#e1e1e1';
     }
 
-    function showLoadingState() {
-        const submitBtn = registerForm.querySelector('button[type="submit"]');
-        if (submitBtn) { // Verifica se o botão existe
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Criando conta...';
-            submitBtn.style.opacity = '0.7';
+    function showErrorMessage(message) {
+        if (errorMessageDiv) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.style.display = 'block';
+        }
+    }
+
+    function hideErrorMessage() {
+        if (errorMessageDiv) {
+            errorMessageDiv.textContent = '';
+            errorMessageDiv.style.display = 'none';
+        }
+    }
+
+    function showLoadingState(message) {
+        if (loadingStateDiv && loadingMessageSpan) {
+            loadingMessageSpan.textContent = message;
+            loadingStateDiv.style.display = 'flex'; 
         }
     }
 
     function hideLoadingState() {
-        const submitBtn = registerForm.querySelector('button[type="submit"]');
-        if (submitBtn) { // Verifica se o botão existe
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Cadastrar';
-            submitBtn.style.opacity = '1';
+        if (loadingStateDiv) {
+            loadingStateDiv.style.display = 'none';
         }
     }
-
-    // Validação em tempo real (os seus já existentes)
-    firstName.addEventListener('blur', function() {
-        if (this.value.trim().length < 2) {
-            showFieldError(this, 'El nombre debe tener al menos 2 caracteres');
-        } else {
-            clearFieldError(this);
-        }
-    });
-
-    lastName.addEventListener('blur', function() {
-        if (this.value.trim().length < 2) {
-            showFieldError(this, 'El apellido debe tener al menos 2 caracteres');
-        } else {
-            clearFieldError(this);
-        }
-    });
-
-    email.addEventListener('blur', function() {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(this.value.trim())) {
-            showFieldError(this, 'Por favor, ingrese un email válido');
-        } else {
-            clearFieldError(this);
-        }
-    });
-
-    password.addEventListener('blur', function() {
-        if (this.value.length < 6) {
-            showFieldError(this, 'La contraseña debe tener al menos 6 caracteres');
-        } else {
-            clearFieldError(this);
-        }
-    });
-
-    birthday.addEventListener('blur', function() {
-        if (!this.value) {
-            showFieldError(this, 'Por favor, seleccione su fecha de nacimiento');
-        } else {
-            const birthDate = new Date(this.value);
-            const today = new Date();
-            const age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            
-            if (age < 13 || (age === 13 && monthDiff < 0)) {
-                showFieldError(this, 'Debe tener al menos 13 años para registrarse');
-            } else {
-                clearFieldError(this);
-            }
-        }
-    });
-
-    gender.addEventListener('blur', function() {
-        if (!this.value) {
-            showFieldError(this, 'Por favor, seleccione su género');
-        } else {
-            clearFieldError(this);
-        }
-    });
-
-    terms.addEventListener('change', function() {
-        if (!this.checked) {
-            showFieldError(this, 'Debe aceptar los términos y condiciones');
-        } else {
-            clearFieldError(this);
-        }
-    });
-
-
-    // Auto-focus en el primer campo
-    firstName.focus();
+    
+    // Foco inicial
+    if (firstNameInput) firstNameInput.focus();
 });
+
 
