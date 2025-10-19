@@ -27,7 +27,7 @@
                     <label class="checkbox-container">
                         <input type="checkbox" id="remember">
                         <span class="checkmark"></span>
-                        Salvar senha
+                        Salvar email
                     </label>
                 </div>
                 
@@ -41,6 +41,42 @@
         </div>
     </div>
     
-    <script src="scripts/login.js"></script>
+  <!-- === SNIPPET DO FIREBASE === -->
+  <script type="module">
+  console.log("-> Firebase snippet starting execution in index.html."); // DEBUG
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
+  // IMPORTANTE: Adicione 'signInWithEmailAndPassword' e 'createUserWithEmailAndPassword' aqui!
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"; 
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDQ_hTliPlLpW2W6ACCoka1HD5So0K9b9Q",
+    authDomain: "redeifspace.firebaseapp.com",
+    projectId: "redeifspace",
+    storageBucket: "redeifspace.firebasestorage.app",
+    messagingSenderId: "237485490117",
+    appId: "1:237485490117:web:6ad953ad50e6097cb7d5ac",
+    measurementId: "G-JKRWBEBJKV"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const auth = getAuth(app); 
+
+  window.firebaseAuth = auth;
+  // Torne as funções de autenticação também globais!
+  window.firebaseSignInWithEmailAndPassword = signInWithEmailAndPassword; 
+  window.firebaseCreateUserWithEmailAndPassword = createUserWithEmailAndPassword;
+  console.log("-> Firebase snippet finished execution in index.html. window.firebaseAuth, window.firebaseSignInWithEmailAndPassword and window.firebaseCreateUserWithEmailAndPassword are available."); // DEBUG
+  </script>
+
+  <!-- === SEU SCRIPT DE LOGIN.JS === -->
+  <!-- Certifique-se de que este script vem DEPOIS do snippet do Firebase -->
+  <script src="scripts/login.js"></script>
+
 </body>
 </html>
+
+  
+
+
