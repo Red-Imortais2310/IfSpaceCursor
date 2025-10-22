@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IfSpace - Configuração Firebase</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #00a400 0%, #00d4aa 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .config-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        .config-card h1 {
+            color: #00a400;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+        }
+        .step h3 {
+            color: #00a400;
+            margin-bottom: 15px;
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e1e1e1;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .warning {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="config-card">
+        <h1>🔥 Configuração Firebase - IfSpace</h1>
+        
+        <div class="step">
+            <h3>1. Obter Configurações do Firebase</h3>
+            <p>No seu projeto Firebase Console:</p>
+            <ol>
+                <li>Vá para <strong>Project Settings</strong> (ícone da engrenagem)</li>
+                <li>Na aba <strong>General</strong>, role até <strong>Your apps</strong></li>
+                <li>Clique em <strong>Web app</strong> (ícone </>)</li>
+                <li>Copie as configurações que aparecem</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>2. Substituir no arquivo firebase-config.js</h3>
+            <p>Abra o arquivo <code>scripts/firebase-config.js</code> e substitua:</p>
+            <div class="code-block">
+const firebaseConfig = {
+    apiKey: <span class="highlight">"SUA_API_KEY_AQUI"</span>,
+    authDomain: <span class="highlight">"seu-projeto-id.firebaseapp.com"</span>,
+    projectId: <span class="highlight">"seu-projeto-id"</span>,
+    storageBucket: <span class="highlight">"seu-projeto-id.appspot.com"</span>,
+    messagingSenderId: <span class="highlight">"123456789"</span>,
+    appId: <span class="highlight">"1:123456789:web:abcdef123456"</span>
+};
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>3. Configurar Authentication</h3>
+            <p>No Firebase Console:</p>
+            <ol>
+                <li>Vá para <strong>Authentication</strong> → <strong>Sign-in method</strong></li>
+                <li>Habilite <strong>Email/Password</strong></li>
+                <li>Clique em <strong>Save</strong></li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>4. Configurar Firestore Database</h3>
+            <p>No Firebase Console:</p>
+            <ol>
+                <li>Vá para <strong>Firestore Database</strong></li>
+                <li>Clique em <strong>Create database</strong></li>
+                <li>Escolha <strong>Start in test mode</strong></li>
+                <li>Selecione uma localização (ex: us-central1)</li>
+                <li>Clique em <strong>Done</strong></li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>5. Configurar Storage</h3>
+            <p>No Firebase Console:</p>
+            <ol>
+                <li>Vá para <strong>Storage</strong></li>
+                <li>Clique em <strong>Get started</strong></li>
+                <li>Escolha <strong>Start in test mode</strong></li>
+                <li>Selecione a mesma localização do Firestore</li>
+                <li>Clique em <strong>Done</strong></li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>6. Regras de Segurança (Opcional)</h3>
+            <p>Para produção, configure as regras de segurança:</p>
+            <div class="code-block">
+// Firestore Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+// Storage Rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+            </div>
+        </div>
+
+        <div class="success">
+            <h3>✅ Pronto!</h3>
+            <p>Após configurar tudo, seu IfSpace estará funcionando com Firebase!</p>
+            <p><strong>Funcionalidades disponíveis:</strong></p>
+            <ul>
+                <li>✅ Login/Logout real</li>
+                <li>✅ Posts salvos no banco</li>
+                <li>✅ Stories com upload</li>
+                <li>✅ Mensagens em tempo real</li>
+                <li>✅ Sincronização entre usuários</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ Importante</h3>
+            <p>Não compartilhe suas chaves de API publicamente. Para produção, use variáveis de ambiente.</p>
+        </div>
+    </div>
+</body>
+</html>

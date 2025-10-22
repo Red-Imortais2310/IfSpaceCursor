@@ -406,6 +406,60 @@ body {
     margin-top: 40px;
 }
 
+.post-image {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.post-audio {
+    margin: 10px 0;
+    background: #f0f2f5;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.post-audio audio {
+    width: 100%;
+}
+
+.post-link-preview {
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.post-link-preview:hover {
+    border-color: #00a400;
+    background: #f8f9fa;
+}
+
+.post-link-preview img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 8px 8px 0 0;
+}
+
+.post-link-preview h4 {
+    margin: 10px 0;
+    color: #1c1e21;
+    font-size: 1.1em;
+}
+
+.post-link-preview p {
+    color: #65676b;
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 @media (max-width: 768px) {
     .main-container {
         grid-template-columns: 1fr;

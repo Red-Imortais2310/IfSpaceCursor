@@ -2,6 +2,9 @@
 
 console.log("-> login.js starting execution (before DOMContentLoaded)."); // DEBUG
 
+// Importar funções do Firebase
+import { loginUser, onAuthStateChange } from './firebase-config.js';
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOMContentLoaded fired in login.js."); // DEBUG
 
@@ -34,37 +37,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             console.log("Attempting Firebase login with email:", email); // DEBUG
-            // Chamada REAL para o Firebase Authentication para fazer login
-            const userCredential = await window.firebaseSignInWithEmailAndPassword(window.firebaseAuth, email, password);
             
-            console.log('Usuário logado com sucesso no Firebase:', userCredential.user); // DEBUG
+            // Usar a função do firebase-config.js
+            const result = await loginUser(email, password);
+            
+            if (result.success) {
+                console.log('Usuário logado com sucesso no Firebase:', result.user); // DEBUG
 
-            // Salvar APENAS o email no localStorage se "Salvar email" estiver marcado
-            if (rememberCheckbox.checked) {
-                localStorage.setItem('ifspace_email', email);
-                // NUNCA SALVE A SENHA NO LOCALSTORAGE POR RAZÕES DE SEGURANÇA!
+                // Salvar APENAS o email no localStorage se "Salvar email" estiver marcado
+                if (rememberCheckbox.checked) {
+                    localStorage.setItem('ifspace_email', email);
+                    // NUNCA SALVE A SENHA NO LOCALSTORAGE POR RAZÕES DE SEGURANÇA!
+                } else {
+                    localStorage.removeItem('ifspace_email'); // Se desmarcado, remove o email salvo
+                }
+                
+                // Redirecionar para o feed após o login bem-sucedido
+                alert('Login bem-sucedido! Redirecionando para o feed...');
+                window.location.href = 'feed.html';
             } else {
-                localStorage.removeItem('ifspace_email'); // Se desmarcado, remove o email salvo
+                alert('Erro ao fazer login: ' + result.error);
             }
-            
-            // Redirecionar para o feed após o login bem-sucedido
-            alert('Login bem-sucedido! Redirecionando para o feed...');
-            window.location.href = 'feed.html';
 
         } catch (error) {
-            console.error('Erro ao fazer login no Firebase:', error.code, error.message); // DEBUG
-            let friendlyErrorMessage = 'Erro ao fazer login. Por favor, tente novamente.';
-
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-                friendlyErrorMessage = 'Email ou senha incorretos.';
-            } else if (error.code === 'auth/invalid-email') {
-                friendlyErrorMessage = 'O formato do e-mail é inválido.';
-            } else if (error.code === 'auth/user-disabled') {
-                friendlyErrorMessage = 'Esta conta foi desativada.';
-            } else {
-                 friendlyErrorMessage += ` (Detalhe: ${error.message})`; // Fallback para outros erros
-            }
-            alert(friendlyErrorMessage);
+            console.error('Erro ao fazer login no Firebase:', error); // DEBUG
+            alert('Erro ao fazer login: ' + error.message);
         }
     });
 

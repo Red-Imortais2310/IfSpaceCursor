@@ -1,3 +1,12 @@
+// Importar funções do Firebase
+import { 
+    saveMessageToFirebase, 
+    loadMessagesFromFirebase, 
+    onMessagesChange,
+    onAuthStateChange,
+    logoutUser
+} from './firebase-config.js';
+
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos del DOM
     const friendsList = document.getElementById('friendsList');
@@ -188,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function sendMessage() {
+    async function sendMessage() {
         if (!currentFriend) {
             alert('Selecione um amigo para enviar mensagem');
             return;
@@ -201,43 +210,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const newMessage = {
             text: messageText,
             sender: 'me',
-            time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            chatId: `chat_${currentFriend.id}`,
+            friendId: currentFriend.id,
+            friendName: currentFriend.name
         };
 
-        // Agregar mensaje al chat
-        const messageElement = createMessageElement(newMessage);
-        chatMessages.appendChild(messageElement);
+        try {
+            // Salvar mensagem no Firebase
+            const result = await saveMessageToFirebase(newMessage);
+            if (result.success) {
+                // Agregar mensaje al chat
+                const messageElement = createMessageElement(newMessage);
+                chatMessages.appendChild(messageElement);
 
-        // Limpiar input
-        messageInput.value = '';
+                // Limpiar input
+                messageInput.value = '';
 
-        // Scroll al final
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-
-        // Simular respuesta automática después de 2 segundos
-        setTimeout(() => {
-            if (Math.random() > 0.5) { // 50% de probabilidad de respuesta
-                const responses = [
-                    'Interessante!',
-                    'Concordo!',
-                    'Realmente!',
-                    'Que legal!',
-                    'Ótimo!',
-                    'Perfeito!',
-                    'Show!',
-                    'Massa!'
-                ];
-                
-                const autoResponse = {
-                    text: responses[Math.floor(Math.random() * responses.length)],
-                    sender: 'friend',
-                    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                };
-
-                const responseElement = createMessageElement(autoResponse);
-                chatMessages.appendChild(responseElement);
+                // Scroll al final
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+            } else {
+                alert('Erro ao enviar mensagem: ' + result.error);
             }
-        }, 2000);
+        } catch (error) {
+            console.error('Erro ao enviar mensagem:', error);
+            alert('Erro ao enviar mensagem');
+        }
     }
 });

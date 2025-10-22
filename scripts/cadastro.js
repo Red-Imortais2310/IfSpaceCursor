@@ -2,6 +2,9 @@
 
 console.log("-> cadastro.js starting execution.");
 
+// Importar funções do Firebase
+import { createUser } from './firebase-config.js';
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOMContentLoaded fired in cadastro.js.");
 
@@ -62,35 +65,31 @@ document.addEventListener('DOMContentLoaded', function() {
             const profilePictureFile = profilePictureInput.files[0];
 
             try {
-                // 1. Criar usuário no Firebase Authentication
-                const userCredential = await window.firebaseCreateUserWithEmailAndPassword(window.firebaseAuth, email, password);
-                const user = userCredential.user;
-                console.log("User successfully registered in Firebase Auth:", user.uid);
-                showLoadingState("Usuário autenticado. Enviando foto de perfil...");
-
-                let profilePictureUrl = '';
-                if (profilePictureFile) {
-                    // 2. Fazer upload da foto de perfil para o Cloud Storage
-                    const storageRef = window.firebaseStorageRef(window.firebaseStorage, `profilePictures/${user.uid}/${profilePictureFile.name}`);
-                    const uploadTask = await window.firebaseStorageUploadBytes(storageRef, profilePictureFile);
-                    profilePictureUrl = await window.firebaseStorageGetDownloadURL(uploadTask.ref);
-                    console.log("Profile picture uploaded to Cloud Storage:", profilePictureUrl);
-                } else {
-                    console.log("No profile picture selected. Using default.");
-                    // Opcional: definir uma URL de imagem padrão aqui se não houver upload
-                    // profilePictureUrl = 'URL_DA_SUA_IMAGEM_PADRAO'; 
-                }
-
-                // 3. Salvar dados adicionais do usuário (e a URL da foto) no Cloud Firestore
-                await window.firebaseFirestoreSetDoc(window.firebaseFirestoreDoc(window.firebaseFirestore, "users", user.uid), {
+                // Usar a função do firebase-config.js
+                const userData = {
                     firstName: firstName,
                     lastName: lastName,
-                    email: email,
                     birthday: birthday,
-                    gender: gender,
-                    profilePictureUrl: profilePictureUrl,
-                    createdAt: window.firebaseTimestamp.now()
-                });
+                    gender: gender
+                };
+                
+                const result = await createUser(email, password, userData);
+                
+                if (result.success) {
+                    console.log("User successfully registered in Firebase Auth:", result.user.uid);
+                    showLoadingState("Usuário criado com sucesso!");
+                    
+                    // Aguardar um pouco e redirecionar
+                    setTimeout(() => {
+                        hideLoadingState();
+                        alert('Conta criada com sucesso! Agora você pode fazer login.');
+                        window.location.href = 'index.html';
+                    }, 2000);
+                } else {
+                    hideLoadingState();
+                    alert('Erro ao criar conta: ' + result.error);
+                }
+                    // Código removido: bloco isolado de propriedades não válido aqui
                 console.log("User data successfully saved to Firestore for UID:", user.uid);
                 showLoadingState("Dados de perfil salvos. Redirecionando...");
 
