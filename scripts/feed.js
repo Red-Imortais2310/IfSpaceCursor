@@ -1,193 +1,598 @@
 // scripts/feed.js
-
 console.log("-> feed.js starting execution.");
 
-// Importar funções do Firebase
-import { 
-    savePostToFirebase, 
-    loadPostsFromFirebase, 
-    saveStoryToFirebase, 
-    uploadFileToFirebase,
-    saveMessageToFirebase,
-    loadMessagesFromFirebase,
-    onAuthStateChange,
-    onPostsChange,
-    onMessagesChange,
-    logoutUser
-} from './firebase-config.js';
+import { auth, db, storage, onAuthStateChange, savePostToFirebase, onPostsChange } from './firebase-config.js';
+import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+import { doc, getDoc, collection, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-// Variáveis para os elementos do DOM (declaradas fora do DOMContentLoaded para escopo maior)
-let liveBtn;
-let photoBtn;
-let feelingBtn;
-let feelingModal;
-let closeModal;
-let emojisGrid;
-let postsFeed;
-let postText;
-let messagesBtn;
-let contactsList;
-let userNameSpan;     // Elemento do nome do usuário na sidebar
-let profileImage;     // Elemento para exibir a foto de perfil do Firebase
-let logoutButton;     // Botão de logout no header
-let mainContentArea;  // Referência para o container principal onde os botões admin serão adicionados
+// Variáveis do DOM e estado
+let liveBtn, photoBtn, feelingBtn, feelingModal, closeModal, emojisGrid, postsFeed, postText, messagesBtn, contactsList, userNameSpan, profileImage, logoutButton, mainContentArea, imageUploadInput;
+let currentUserId = null;
 
-// Variáveis para o feed dinâmico e scroll infinito
-let lastVisiblePost = null;
-let loadingPosts = false;
-const POSTS_PER_PAGE = 10;
-
-// Dados de exemplo para contatos (15 nomes)
-const contacts = [
-    { name: 'Maria Silva', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'João Santos', status: 'Há 2 min', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Ana Costa', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Pedro Oliveira', status: 'Há 5 min', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Carla Lima', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Rafael Souza', status: 'Há 10 min', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Fernanda Rocha', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Lucas Alves', status: 'Há 15 min', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Juliana Ferreira', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Diego Martins', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Patricia Gomes', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Marcos Silva', status: 'Há 30 min', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Camila Dias', status: 'Online', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Thiago Costa', status: 'Há 1 hora', avatar: 'https://via.placeholder.com/35' },
-    { name: 'Larissa Santos', status: 'Online', avatar: 'https://via.placeholder.com/35' }
+// Dados de exemplo para contatos
+const exampleContacts = [
+    { name: 'João Silva', img: 'https://placehold.co/40x40/007bff/ffffff?text=JS' },
+    { name: 'Maria Souza', img: 'https://placehold.co/40x40/28a745/ffffff?text=MS' },
+    { name: 'Pedro Santos', img: 'https://placehold.co/40x40/ffc107/333333?text=PS' },
+    { name: 'Ana Costa', img: 'https://placehold.co/40x40/dc3545/ffffff?text=AC' },
+    { name: 'Lucas Oliveira', img: 'https://placehold.co/40x40/6f42c1/ffffff?text=LO' },
+    { name: 'Juliana Lima', img: 'https://placehold.co/40x40/e83e8c/ffffff?text=JL' },
+    { name: 'Carlos Ferreira', img: 'https://placehold.co/40x40/17a2b8/ffffff?text=CF' },
+    { name: 'Fernanda Rocha', img: 'https://placehold.co/40x40/fd7e14/ffffff?text=FR' },
+    { name: 'Rafael Alves', img: 'https://placehold.co/40x40/6c757d/ffffff?text=RA' },
+    { name: 'Beatriz Gomes', img: 'https://placehold.co/40x40/00bcd4/ffffff?text=BG' },
+    { name: 'Gustavo Martins', img: 'https://placehold.co/40x40/e91e63/ffffff?text=GM' },
+    { name: 'Larissa Vieira', img: 'https://placehold.co/40x40/ff9800/ffffff?text=LV' },
+    { name: 'Diego Nogueira', img: 'https://placehold.co/40x40/9c27b0/ffffff?text=DN' },
+    { name: 'Camila Ribeiro', img: 'https://placehold.co/40x40/4caf50/ffffff?text=CR' },
+    { name: 'Eduardo Pires', img: 'https://placehold.co/40x40/795548/ffffff?text=EP' }
 ];
 
-// Funções auxiliares para manipulação de mídia e links
+// Funções auxiliares
 function detectLinks(text) {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     return text.match(urlRegex);
 }
 
-function handleMediaUpload(file, type) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            resolve({
-                type: type,
-                url: e.target.result
-            });
-        };
-        reader.readAsDataURL(file);
-    });
+async function handleMediaUpload(file, type) {
+    if (!currentUserId) return { success: false, error: "Usuário não autenticado." };
+    if (!storage) return { success: false, error: "Firebase Storage não inicializado." };
+    
+    const fileName = `${type}/${currentUserId}_${Date.now()}_${file.name}`;
+    try {
+        const storageRef = ref(storage, fileName);
+        const snapshot = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        return { success: true, url };
+    } catch (error) {
+        console.error("Erro no upload de mídia:", error);
+        return { success: false, error: error.message };
+    }
 }
 
 async function createLinkPreview(url) {
-    // Simular preview por enquanto
+    console.warn("Função createLinkPreview requer implementação de backend.");
     return {
-        title: 'Preview do Link',
-        description: url,
-        image: 'https://via.placeholder.com/200'
+        title: "Link Externo",
+        description: url.substring(0, 50) + '...',
+        image: 'https://placehold.co/150x100?text=Preview'
     };
 }
 
 function createPostElement(post) {
     const postDiv = document.createElement('div');
     postDiv.className = 'post';
-    
+
+    let timeDisplay = post.time || 'Agora';
+    if (post.timestamp instanceof Date) {
+        timeDisplay = post.timestamp.toLocaleString('pt-BR');
+    } else if (post.timestamp && post.timestamp.toDate) {
+        timeDisplay = post.timestamp.toDate().toLocaleString('pt-BR');
+    }
+
     let mediaContent = '';
-    if (post.type === 'image') {
-        mediaContent = `<img src="${post.mediaUrl}" alt="Post image" class="post-image">`;
-    } else if (post.type === 'audio') {
+    if (post.type === 'image' && post.mediaUrl) {
+        mediaContent = `<img src="${post.mediaUrl}" alt="Imagem do post" class="post-image" onerror="this.src='https://placehold.co/400x300?text=Image+Error'">`;
+    } else if (post.type === 'video' && post.mediaUrl) {
         mediaContent = `
-            <div class="post-audio">
-                <audio controls>
-                    <source src="${post.mediaUrl}" type="audio/mpeg">
-                </audio>
+            <div class="post-video">
+                <video controls>
+                    <source src="${post.mediaUrl}" type="video/mp4" onerror="this.parentElement.innerHTML='<img src=https://placehold.co/400x300?text=Video+Error>'">
+                </video>
             </div>
         `;
-    } else if (post.type === 'link') {
+    } else if (post.type === 'link' && post.preview) {
         mediaContent = `
             <div class="post-link-preview">
-                <img src="${post.preview.image}" alt="Link preview">
-                <h4>${post.preview.title}</h4>
-                <p>${post.preview.description}</p>
+                <img src="${post.preview.image || 'https://placehold.co/150x100?text=Link+Preview'}" alt="Link preview" onerror="this.src='https://placehold.co/150x100?text=Preview+Error'">
+                <h4>${post.preview.title || 'Link sem título'}</h4>
+                <p>${post.preview.description || 'Clique para ver o conteúdo.'}</p>
             </div>
         `;
     }
 
+    const likes = post.likes || 0;
+    const comments = post.comments || 0;
+    const shares = post.shares || 0;
+
+    const defaultAvatar = 'https://placehold.co/40x40?text=AV';
+
     postDiv.innerHTML = `
         <div class="post-header">
-            <img src="${post.avatar}" alt="${post.author}" class="profile-img">
+            <img src="${post.avatar || defaultAvatar}" alt="${post.author}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=AV'">
             <div>
-                <h4>${post.author}</h4>
-                <span>${post.time}</span>
+                <h4>${post.author || 'Usuário IfSpace'}</h4>
+                <span>${timeDisplay}</span>
             </div>
         </div>
         <div class="post-content">
-            ${post.content}
+            ${post.content || ''}
             ${mediaContent}
         </div>
         <div class="post-actions">
             <button class="post-action">
                 <i class="fas fa-thumbs-up"></i>
-                Curtir (${post.likes})
+                Curtir (${likes})
             </button>
             <button class="post-action">
                 <i class="fas fa-comment"></i>
-                Comentar (${post.comments})
+                Comentar (${comments})
             </button>
             <button class="post-action">
                 <i class="fas fa-share"></i>
-                Compartilhar (${post.shares})
+                Compartilhar (${shares})
             </button>
         </div>
     `;
     return postDiv;
 }
 
-function createNewPost(content, type = 'text', mediaUrl = null, preview = null) {
-    const newPost = {
+async function createNewPost(content, type = 'text', mediaUrl = null, preview = null) {
+    if (!content && !mediaUrl && !preview) {
+        const errorMessage = document.getElementById('errorMessage');
+        if (errorMessage) {
+            errorMessage.textContent = 'Por favor, insira um texto, imagem, vídeo ou link.';
+            errorMessage.style.display = 'block';
+            setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+        } else {
+            alert('Por favor, insira um texto, imagem, vídeo ou link.');
+        }
+        return;
+    }
+
+    const defaultAvatar = 'https://placehold.co/40x40?text=AV';
+    
+    const newPostData = {
         author: userNameSpan ? userNameSpan.textContent : 'Usuário IfSpace',
-        avatar: 'https://via.placeholder.com/40',
-        content: content,
-        time: 'Agora',
+        avatar: profileImage ? profileImage.src : defaultAvatar,
+        content,
+        type,
+        mediaUrl,
+        preview,
         likes: 0,
         comments: 0,
         shares: 0,
-        type: type,
-        mediaUrl: mediaUrl,
-        preview: preview
+        authorUid: currentUserId,
+        timestamp: new Date()
     };
 
-    if (postsFeed) {
-        const postElement = createPostElement(newPost);
-        postsFeed.insertBefore(postElement, postsFeed.firstChild);
+    try {
+        await savePostToFirebase(newPostData);
+        console.log("Post salvo no Firebase.");
+        if (postsFeed) {
+            const postElement = createPostElement(newPostData);
+            postsFeed.insertBefore(postElement, postsFeed.firstChild);
+        }
+    } catch (error) {
+        console.error("Erro ao salvar post:", error);
+        const errorMessage = document.getElementById('errorMessage');
+        if (errorMessage) {
+            errorMessage.textContent = 'Erro ao salvar o post: ' + error.message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+        } else {
+            alert('Erro ao salvar o post: ' + error.message);
+        }
+    }
+}
+
+function loadContacts() {
+    if (contactsList) {
+        contactsList.innerHTML = exampleContacts.map(contact => `
+            <li class="contact-item">
+                <img src="${contact.img}" alt="${contact.name}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=C'">
+                <span>${contact.name}</span>
+            </li>
+        `).join('');
+    }
+}
+
+function loadPosts() {
+    if (!postsFeed) return;
+
+    onPostsChange((posts) => {
+        console.log("Posts recebidos do Firestore:", posts.map(p => ({
+            content: p.content,
+            timestamp: p.timestamp?.toDate ? p.timestamp.toDate().toISOString() : 'Sem timestamp'
+        })));
+        // Ordenar localmente por timestamp em ordem crescente, se necessário
+        posts.sort((a, b) => {
+            const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
+            const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
+            return timeB - timeA; // Ordem decrescente
+        });
+        postsFeed.innerHTML = '';
+        posts.forEach((post) => {
+            const postElement = createPostElement(post);
+            postsFeed.appendChild(postElement);
+        });
+    });
+}
+
+function loadStories() {
+    if (!db || !document.getElementById('storiesContainer')) return;
+
+    const storiesRef = collection(db, 'stories');
+    const storiesQuery = query(storiesRef, orderBy('createdAt', 'desc'));
+    onSnapshot(storiesQuery, (snapshot) => {
+        const storiesContainer = document.getElementById('storiesContainer');
+        storiesContainer.innerHTML = '';
+        const userStories = {};
+        snapshot.forEach((doc) => {
+            const story = doc.data();
+            if (!userStories[story.authorId]) {
+                userStories[story.authorId] = [];
+            }
+            if (userStories[story.authorId].length < 3) {
+                userStories[story.authorId].push(story);
+                const storyElement = document.createElement('div');
+                storyElement.className = 'story-item';
+                storyElement.innerHTML = `
+                    <img src="${story.imageURL || 'https://placehold.co/60x60?text=S'}" alt="Story" onerror="this.src='https://placehold.co/60x60?text=S'">
+                    <span>${story.authorName}</span>
+                `;
+                storiesContainer.appendChild(storyElement);
+            }
+        });
+    });
+}
+
+function init() {
+    loadContacts();
+    loadPosts();
+    loadStories();
+    if (liveBtn) liveBtn.addEventListener('click', () => {
+        alert("Funcionalidade de Live ainda não implementada!");
+    });
+    setupEventListeners();
+}
+
+const mediaModal = document.createElement('div');
+mediaModal.className = 'media-modal';
+
+function openMediaSelector() {
+    mediaModal.innerHTML = `
+        <div class="media-modal-content">
+            <div class="media-modal-header">
+                <h3>Adicionar Mídia ao Post</h3>
+                <span class="close-media-modal">&times;</span>
+            </div>
+            <div class="media-options">
+                <div class="media-option" data-type="image">
+                    <i class="fas fa-image"></i>
+                    <h4>Imagem</h4>
+                    <p>Carregar do seu computador ou link.</p>
+                </div>
+                <div class="media-option" data-type="video">
+                    <i class="fas fa-video"></i>
+                    <h4>Vídeo</h4>
+                    <p>Carregar arquivo ou URL.</p>
+                </div>
+                <div class="media-option" data-type="link">
+                    <i class="fas fa-link"></i>
+                    <h4>Link</h4>
+                    <p>Adicionar um link com prévia.</p>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(mediaModal);
+    setupMediaModalEvents(mediaModal);
+}
+
+function setupMediaModalEvents(modal) {
+    const closeBtn = modal.querySelector('.close-media-modal');
+    const mediaOptions = modal.querySelectorAll('.media-option');
+
+    closeBtn.addEventListener('click', () => modal.remove());
+
+    mediaOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const type = this.dataset.type;
+            modal.remove();
+            switch(type) {
+                case 'image':
+                    openImageSelector();
+                    break;
+                case 'video':
+                    openVideoSelector();
+                    break;
+                case 'link':
+                    openLinkSelector();
+                    break;
+            }
+        });
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function openImageSelector() {
+    const imageModal = document.createElement('div');
+    imageModal.className = 'image-modal';
+    imageModal.innerHTML = `
+        <div class="image-modal-content">
+            <div class="image-modal-header">
+                <h3>Adicionar Imagem</h3>
+                <span class="close-image-modal">&times;</span>
+            </div>
+            <div class="image-options">
+                <label for="imageFileInput" class="image-option" data-type="file">
+                    <i class="fas fa-upload"></i>
+                    <h4>Carregar Arquivo</h4>
+                    <input type="file" id="imageFileInput" accept="image/*" style="display: none;">
+                </label>
+                <div class="image-option" id="imageLinkOption">
+                    <i class="fas fa-link"></i>
+                    <h4>URL da Imagem</h4>
+                </div>
+                <div class="image-option" id="googleImagesOption">
+                    <i class="fab fa-google"></i>
+                    <h4>Pesquisar Google</h4>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(imageModal);
+    setupImageModalEvents(imageModal);
+}
+
+function setupImageModalEvents(modal) {
+    const closeBtn = modal.querySelector('.close-image-modal');
+    const fileInput = modal.querySelector('#imageFileInput');
+    const imageLink = modal.querySelector('#imageLinkOption');
+    const googleImages = modal.querySelector('#googleImagesOption');
+
+    closeBtn.addEventListener('click', () => modal.remove());
+
+    fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const uploadResult = await handleMediaUpload(file, 'image');
+            if (uploadResult.success) {
+                createNewPost('Nova imagem postada.', 'image', uploadResult.url);
+            } else {
+                const errorMessage = document.getElementById('errorMessage');
+                if (errorMessage) {
+                    errorMessage.textContent = 'Erro no upload: ' + uploadResult.error;
+                    errorMessage.style.display = 'block';
+                    setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+                } else {
+                    alert('Erro no upload: ' + uploadResult.error);
+                }
+            }
+            modal.remove();
+        }
+    });
+
+    googleImages.addEventListener('click', function() {
+        alert('Funcionalidade do Google Imagens será implementada em breve!');
+    });
+
+    imageLink.addEventListener('click', function() {
+        const url = prompt('Digite a URL da imagem:');
+        if (url && url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+            createNewPost('Nova imagem postada via link.', 'image', url);
+            modal.remove();
+        } else {
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = 'Por favor, insira uma URL válida de imagem (jpg, png, gif, webp)';
+                errorMessage.style.display = 'block';
+                setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+            } else {
+                alert('Por favor, insira uma URL válida de imagem (jpg, png, gif, webp)');
+            }
+        }
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function openVideoSelector() {
+    const videoModal = document.createElement('div');
+    videoModal.className = 'video-modal';
+    videoModal.innerHTML = `
+        <div class="video-modal-content">
+            <div class="video-modal-header">
+                <h3>Adicionar Vídeo</h3>
+                <span class="close-video-modal">&times;</span>
+            </div>
+            <div class="video-options">
+                <label for="videoFileInput" class="video-option" data-type="file">
+                    <i class="fas fa-upload"></i>
+                    <h4>Carregar Arquivo</h4>
+                    <input type="file" id="videoFileInput" accept="video/*" style="display: none;">
+                </label>
+                <div class="video-option" id="videoLinkOption">
+                    <i class="fas fa-link"></i>
+                    <h4>URL do Vídeo</h4>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(videoModal);
+    setupVideoModalEvents(videoModal);
+}
+
+function setupVideoModalEvents(modal) {
+    const closeBtn = modal.querySelector('.close-video-modal');
+    const fileInput = modal.querySelector('#videoFileInput');
+    const videoLink = document.getElementById('videoLinkOption');
+
+    closeBtn.addEventListener('click', () => modal.remove());
+
+    fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const uploadResult = await handleMediaUpload(file, 'video');
+            if (uploadResult.success) {
+                createNewPost('Novo vídeo postado.', 'video', uploadResult.url);
+            } else {
+                const errorMessage = document.getElementById('errorMessage');
+                if (errorMessage) {
+                    errorMessage.textContent = 'Erro no upload: ' + uploadResult.error;
+                    errorMessage.style.display = 'block';
+                    setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+                } else {
+                    alert('Erro no upload: ' + uploadResult.error);
+                }
+            }
+            modal.remove();
+        }
+    });
+
+    videoLink.addEventListener('click', function() {
+        const url = prompt('Digite a URL do vídeo:');
+        if (url && url.match(/\.(mp4|webm|ogg|avi|mov)$/i)) {
+            createNewPost('Novo vídeo postado via link.', 'video', url);
+            modal.remove();
+        } else {
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = 'Por favor, insira uma URL válida de vídeo (mp4, webm, ogg, avi, mov)';
+                errorMessage.style.display = 'block';
+                setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+            } else {
+                alert('Por favor, insira uma URL válida de vídeo (mp4, webm, ogg, avi, mov)');
+            }
+        }
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function openLinkSelector() {
+    const linkModal = document.createElement('div');
+    linkModal.className = 'link-modal';
+    linkModal.innerHTML = `
+        <div class="link-modal-content">
+            <div class="link-modal-header">
+                <h3>Adicionar Link</h3>
+                <span class="close-link-modal">&times;</span>
+            </div>
+            <div style="padding: 20px;">
+                <input type="text" id="linkInput" class="link-input" placeholder="Digite a URL do link (ex: https://www.google.com)">
+                <button id="previewBtn" class="post-btn" style="width: 100%; margin-top: 10px;">Pré-visualizar</button>
+                <div id="previewContainer" class="preview-container"></div>
+                <button id="postLinkBtn" class="post-btn" style="width: 100%; margin-top: 15px; background-color: #00a400;">Publicar Link</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(linkModal);
+    setupLinkModalEvents(linkModal);
+}
+
+function setupLinkModalEvents(modal) {
+    const closeBtn = modal.querySelector('.close-link-modal');
+    const linkInput = modal.querySelector('#linkInput');
+    const previewBtn = modal.querySelector('#previewBtn');
+    const postLinkBtn = modal.querySelector('#postLinkBtn');
+    const previewContainer = modal.querySelector('#previewContainer');
+
+    closeBtn.addEventListener('click', () => modal.remove());
+
+    previewBtn.addEventListener('click', async function() {
+        const url = linkInput.value;
+        if (url) {
+            const preview = await createLinkPreview(url);
+            previewContainer.innerHTML = `
+                <p>Pré-visualização:</p>
+                <div style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+                    <h4>${preview.title}</h4>
+                    <p>${preview.description}</p>
+                    <img src="${preview.image}" alt="Link Preview" onerror="this.src='https://placehold.co/150x100?text=Preview+Error'">
+                </div>
+            `;
+        }
+    });
+
+    postLinkBtn.addEventListener('click', async function() {
+        const url = linkInput.value;
+        if (url) {
+            const preview = await createLinkPreview(url);
+            createNewPost(`Confira este link: ${url}`, 'link', null, preview);
+            modal.remove();
+        } else {
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = 'Por favor, insira uma URL válida.';
+                errorMessage.style.display = 'block';
+                setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+            } else {
+                alert('Por favor, insira uma URL válida.');
+            }
+        }
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+function openFeelingSelector() {
+    if (feelingModal) {
+        feelingModal.style.display = 'block';
     }
 }
 
 function setupEventListeners() {
-    // Botão Live
-    if (liveBtn) liveBtn.addEventListener('click', function() {
-        alert('Funcionalidade de Live em desenvolvimento. Logo estará disponível!');
-    });
+    if (photoBtn) {
+        photoBtn.addEventListener('click', () => {
+            imageUploadInput.click(); // Abre o seletor de arquivos
+        });
+    }
 
-    // Botão Foto/Imagem/Áudio com sugestões
-    if (photoBtn) photoBtn.addEventListener('click', function() {
-        openMediaSelector();
-    });
-
-    // Botão Sentimento com categorias
     if (feelingBtn) feelingBtn.addEventListener('click', function() {
         openFeelingSelector();
     });
 
-    // Fechar modal de Sentimento
     if (closeModal) closeModal.addEventListener('click', function() {
         if (feelingModal) feelingModal.style.display = 'none';
     });
 
-    // Fechar modal de Sentimento ao clicar fora
+    if (imageUploadInput) {
+        imageUploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file && currentUserId) {
+                const uploadResult = await handleMediaUpload(file, 'image');
+                if (uploadResult.success) {
+                    createNewPost('Nova imagem postada.', 'image', uploadResult.url);
+                } else {
+                    const errorMessage = document.getElementById('errorMessage');
+                    if (errorMessage) {
+                        errorMessage.textContent = 'Erro no upload: ' + uploadResult.error;
+                        errorMessage.style.display = 'block';
+                        setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+                    } else {
+                        alert('Erro no upload: ' + uploadResult.error);
+                    }
+                }
+                imageUploadInput.value = ''; // Limpa o input
+            }
+        });
+    }
+
     window.addEventListener('click', function(e) {
         if (e.target === feelingModal) {
             if (feelingModal) feelingModal.style.display = 'none';
         }
     });
 
-    // Selecionar emoji
     if (emojisGrid) emojisGrid.addEventListener('click', function(e) {
         if (e.target.classList.contains('emoji-item')) {
             const emoji = e.target.dataset.emoji;
@@ -199,71 +604,27 @@ function setupEventListeners() {
         }
     });
 
-    // Botão de mensagens
     if (messagesBtn) messagesBtn.addEventListener('click', function() {
         window.location.href = 'mensagens.html';
     });
 
-    // Criar novo post (com keypress e suporte a links)
     if (postText) postText.addEventListener('keypress', async function(e) {
         if (e.key === 'Enter' && this.value.trim()) {
+            e.preventDefault();
             const content = this.value.trim();
             const links = detectLinks(content);
-            
             if (links && links.length > 0) {
                 const preview = await createLinkPreview(links[0]);
                 createNewPost(content, 'link', null, preview);
             } else {
                 createNewPost(content, 'text');
             }
-            
             this.value = '';
         }
     });
 }
 
-function loadContacts() {
-    if (contactsList) {
-        contactsList.innerHTML = '';
-        contacts.forEach(contact => {
-            const contactElement = document.createElement('div');
-            contactElement.className = 'contact-item';
-            contactElement.innerHTML = `
-                <img src="${contact.avatar}" alt="${contact.name}">
-                <div class="contact-info">
-                    <div class="contact-name">${contact.name}</div>
-                    <div class="contact-status">${contact.status}</div>
-                </div>
-            `;
-            contactsList.appendChild(contactElement);
-        });
-    } else {
-        console.warn("IfSpace UI: Elemento 'contactsList' não encontrado.");
-    }
-}
-
-function loadPosts() {
-    if (postsFeed) {
-        postsFeed.innerHTML = '';
-        // Aqui você pode implementar a lógica de carregamento de posts do Firebase
-        // Por enquanto, pode deixar vazio ou adicionar alguns posts de exemplo
-    } else {
-        console.warn("IfSpace UI: Elemento 'postsFeed' não encontrado.");
-    }
-}
-
-function init() {
-    console.log("IfSpace UI: Inicializando componentes...");
-    loadContacts();
-    loadPosts();
-    setupEventListeners();
-}
-
-// Inicialização quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOMContentLoaded fired in feed.js");
-
-    // Obtenção de referências aos elementos do DOM
     liveBtn = document.getElementById('liveBtn');
     photoBtn = document.getElementById('photoBtn');
     feelingBtn = document.getElementById('feelingBtn');
@@ -278,768 +639,61 @@ document.addEventListener('DOMContentLoaded', function() {
     profileImage = document.getElementById('profileImage');
     logoutButton = document.getElementById('logoutButton');
     mainContentArea = document.querySelector('.main-content');
+    imageUploadInput = document.getElementById('imageUploadInput');
 
-    // Configuração de autenticação do Firebase
-    if (window.firebaseAuth) {
-        window.firebaseOnAuthStateChanged(window.firebaseAuth, async (user) => {
-            if (user) {
-                // Usuário está logado
-                console.log("Firebase: Usuário logado:", user.uid);
-                
-                try {
-                    const userDocRef = window.firebaseFirestoreDoc(window.firebaseFirestore, "users", user.uid);
-                    const userDocSnap = await window.firebaseFirestoreGetDoc(userDocRef);
+    onAuthStateChange(async (user) => {
+        if (user) {
+            currentUserId = user.uid;
+            console.log("Firebase: Usuário logado:", currentUserId);
 
-                    if (userDocSnap.exists()) {
-                        const userData = userDocSnap.data();
-                        if (userNameSpan) {
-                            userNameSpan.textContent = `${userData.firstName} ${userData.lastName}`;
-                        }
-                        if (profileImage && userData.profilePictureUrl) {
-                            profileImage.src = userData.profilePictureUrl;
-                        } else if (profileImage) {
-                            profileImage.src = "https://via.placeholder.com/50";
-                        }
-                    } else {
-                        if (userNameSpan) userNameSpan.textContent = "Usuário sem perfil";
+            const defaultAvatar = 'https://placehold.co/50x50?text=AV';
+            try {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    if (userNameSpan) {
+                        userNameSpan.textContent = userData.fullName || userData.email || 'Usuário IfSpace';
                     }
-                } catch (error) {
-                    console.error("Firebase: Erro ao buscar dados do usuário:", error);
-                    if (userNameSpan) userNameSpan.textContent = "Erro ao carregar nome";
-                }
-
-                // Inicializar a UI após confirmação de login
-                init();
-
-                // Configurar eventos do logout
-                if (logoutButton) {
-                    logoutButton.addEventListener('click', async () => {
-                        try {
-                            await window.firebaseSignOut(window.firebaseAuth);
-                            console.log("Firebase: Usuário deslogado com sucesso.");
-                            window.location.href = 'index.html';
-                        } catch (error) {
-                            console.error("Firebase: Erro ao fazer logout:", error);
-                            alert("Erro ao fazer logout. Por favor, tente novamente.");
-                        }
-                    });
-                }
-            } else {
-                // Usuário não está logado
-                console.log("Firebase: Nenhum usuário logado. Redirecionando para index.html");
-                window.location.href = 'index.html';
-            }
-        });
-    } else {
-        console.warn("Firebase: Firebase Auth não disponível. Inicializando sem autenticação.");
-        init();
-    }
-
-    // Sistema de posts temporários (5 dias)
-    function setupTemporaryPosts() {
-        const posts = JSON.parse(localStorage.getItem('ifspace_posts') || '[]');
-        const now = new Date().getTime();
-        const fiveDaysInMs = 5 * 24 * 60 * 60 * 1000;
-        
-        // Remover posts antigos
-        const validPosts = posts.filter(post => {
-            const postTime = new Date(post.timestamp).getTime();
-            return (now - postTime) < fiveDaysInMs;
-        });
-        
-        // Salvar posts válidos
-        localStorage.setItem('ifspace_posts', JSON.stringify(validPosts));
-        
-        // Carregar posts no feed
-        loadTemporaryPosts(validPosts);
-    }
-
-    async function loadTemporaryPosts(posts) {
-        if (postsFeed) {
-            postsFeed.innerHTML = '';
-            
-            // Se não há posts locais, carregar do Firebase
-            if (!posts || posts.length === 0) {
-                try {
-                    const result = await loadPostsFromFirebase();
-                    if (result.success) {
-                        posts = result.posts;
+                    if (profileImage && userData.profilePictureUrl) {
+                        profileImage.src = userData.profilePictureUrl;
+                    } else if (profileImage) {
+                        profileImage.src = defaultAvatar;
                     }
-                } catch (error) {
-                    console.error('Erro ao carregar posts do Firebase:', error);
+                } else {
+                    if (userNameSpan) userNameSpan.textContent = 'Usuário sem perfil';
+                    if (profileImage) profileImage.src = defaultAvatar;
                 }
+            } catch (error) {
+                console.error("Firebase: Erro ao buscar dados do usuário:", error);
+                if (userNameSpan) userNameSpan.textContent = 'Erro de Permissão';
+                if (profileImage) profileImage.src = defaultAvatar;
             }
-            
-            posts.forEach(post => {
-                const postElement = createPostElement(post);
-                postsFeed.appendChild(postElement);
-            });
+
+            init();
+
+            if (logoutButton) {
+                logoutButton.addEventListener('click', async () => {
+                    try {
+                        await auth.signOut();
+                        console.log("Firebase: Usuário deslogado com sucesso.");
+                        window.location.href = 'index.html';
+                    } catch (error) {
+                        console.error("Firebase: Erro ao fazer logout:", error);
+                        const errorMessage = document.getElementById('errorMessage');
+                        if (errorMessage) {
+                            errorMessage.textContent = 'Erro ao fazer logout: ' + error.message;
+                            errorMessage.style.display = 'block';
+                            setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
+                        } else {
+                            alert('Erro ao fazer logout: ' + error.message);
+                        }
+                    }
+                });
+            }
+        } else {
+            console.log("Firebase: Nenhum usuário logado. Redirecionando para index.html");
+            window.location.href = 'index.html';
         }
-    }
-
-    async function savePostToStorage(post) {
-        try {
-            const result = await savePostToFirebase(post);
-            if (result.success) {
-                console.log('Post salvo no Firebase:', result.id);
-                return true;
-            } else {
-                console.error('Erro ao salvar post:', result.error);
-                return false;
-            }
-        } catch (error) {
-            console.error('Erro ao salvar post:', error);
-            return false;
-        }
-    }
-
-    // Seletor de mídia avançado
-    function openMediaSelector() {
-        const mediaModal = document.createElement('div');
-        mediaModal.className = 'media-modal';
-        mediaModal.innerHTML = `
-            <div class="media-modal-content">
-                <div class="media-modal-header">
-                    <h3>Adicionar Mídia</h3>
-                    <span class="close-media-modal">&times;</span>
-                </div>
-                <div class="media-options">
-                    <div class="media-option" data-type="image">
-                        <i class="fas fa-image"></i>
-                        <h4>Imagem</h4>
-                        <p>Foto ou imagem</p>
-                    </div>
-                    <div class="media-option" data-type="video">
-                        <i class="fas fa-video"></i>
-                        <h4>Vídeo</h4>
-                        <p>Vídeo com áudio</p>
-                    </div>
-                    <div class="media-option" data-type="link">
-                        <i class="fas fa-link"></i>
-                        <h4>Link</h4>
-                        <p>URL de imagem ou vídeo</p>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Adicionar estilos
-        const style = document.createElement('style');
-        style.textContent = `
-            .media-modal {
-                display: flex;
-                position: fixed;
-                z-index: 3000;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.8);
-                align-items: center;
-                justify-content: center;
-            }
-            .media-modal-content {
-                background: white;
-                border-radius: 12px;
-                width: 90%;
-                max-width: 500px;
-                max-height: 80vh;
-                overflow-y: auto;
-            }
-            .media-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 20px;
-                border-bottom: 1px solid #e1e1e1;
-            }
-            .media-modal-header h3 {
-                color: #00a400;
-                margin: 0;
-            }
-            .close-media-modal {
-                font-size: 24px;
-                cursor: pointer;
-                color: #666;
-            }
-            .media-options {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                gap: 15px;
-                padding: 20px;
-            }
-            .media-option {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                padding: 20px;
-                border: 2px solid #e1e1e1;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                text-align: center;
-            }
-            .media-option:hover {
-                border-color: #00a400;
-                background: #f0f2f5;
-            }
-            .media-option i {
-                font-size: 2rem;
-                color: #00a400;
-                margin-bottom: 10px;
-            }
-            .media-option h4 {
-                margin: 5px 0;
-                color: #333;
-            }
-            .media-option p {
-                font-size: 12px;
-                color: #666;
-                margin: 0;
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(mediaModal);
-
-        // Event listeners
-        setupMediaModalEvents(mediaModal);
-    }
-
-    function setupMediaModalEvents(modal) {
-        const closeBtn = modal.querySelector('.close-media-modal');
-        const mediaOptions = modal.querySelectorAll('.media-option');
-
-        closeBtn.addEventListener('click', () => modal.remove());
-
-        mediaOptions.forEach(option => {
-            option.addEventListener('click', function() {
-                const type = this.dataset.type;
-                modal.remove();
-                
-                switch(type) {
-                    case 'image':
-                        openImageSelector();
-                        break;
-                    case 'video':
-                        openVideoSelector();
-                        break;
-                    case 'link':
-                        openLinkSelector();
-                        break;
-                }
-            });
-        });
-
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    // Seletor de imagens
-    function openImageSelector() {
-        const imageModal = document.createElement('div');
-        imageModal.className = 'image-modal';
-        imageModal.innerHTML = `
-            <div class="image-modal-content">
-                <div class="image-modal-header">
-                    <h3>Adicionar Imagem</h3>
-                    <span class="close-image-modal">&times;</span>
-                </div>
-                <div class="image-options">
-                    <label class="image-option">
-                        <i class="fas fa-folder-open"></i>
-                        <h4>Meu Arquivo</h4>
-                        <input type="file" accept="image/*" style="display: none;">
-                    </label>
-                    <div class="image-option" id="googleImages">
-                        <i class="fab fa-google"></i>
-                        <h4>Google Imagens</h4>
-                    </div>
-                    <div class="image-option" id="imageLink">
-                        <i class="fas fa-link"></i>
-                        <h4>Link da Imagem</h4>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Adicionar estilos
-        const style = document.createElement('style');
-        style.textContent += `
-            .image-modal, .video-modal, .link-modal {
-                display: flex;
-                position: fixed;
-                z-index: 3000;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.8);
-                align-items: center;
-                justify-content: center;
-            }
-            .image-modal-content, .video-modal-content, .link-modal-content {
-                background: white;
-                border-radius: 12px;
-                width: 90%;
-                max-width: 500px;
-                max-height: 80vh;
-                overflow-y: auto;
-            }
-            .image-modal-header, .video-modal-header, .link-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 20px;
-                border-bottom: 1px solid #e1e1e1;
-            }
-            .image-modal-header h3, .video-modal-header h3, .link-modal-header h3 {
-                color: #00a400;
-                margin: 0;
-            }
-            .close-image-modal, .close-video-modal, .close-link-modal {
-                font-size: 24px;
-                cursor: pointer;
-                color: #666;
-            }
-            .image-options, .video-options, .link-options {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                gap: 15px;
-                padding: 20px;
-            }
-            .image-option, .video-option, .link-option {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                padding: 20px;
-                border: 2px solid #e1e1e1;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                text-align: center;
-            }
-            .image-option:hover, .video-option:hover, .link-option:hover {
-                border-color: #00a400;
-                background: #f0f2f5;
-            }
-            .image-option i, .video-option i, .link-option i {
-                font-size: 2rem;
-                color: #00a400;
-                margin-bottom: 10px;
-            }
-            .image-option h4, .video-option h4, .link-option h4 {
-                margin: 5px 0;
-                color: #333;
-            }
-            .link-input {
-                width: 100%;
-                padding: 10px;
-                border: 1px solid #e1e1e1;
-                border-radius: 4px;
-                margin: 10px 0;
-            }
-            .preview-container {
-                margin: 15px 0;
-                text-align: center;
-            }
-            .preview-image, .preview-video {
-                max-width: 100%;
-                max-height: 200px;
-                border-radius: 8px;
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(imageModal);
-
-        setupImageModalEvents(imageModal);
-    }
-
-    function setupImageModalEvents(modal) {
-        const closeBtn = modal.querySelector('.close-image-modal');
-        const fileInput = modal.querySelector('input[type="file"]');
-        const googleImages = modal.querySelector('#googleImages');
-        const imageLink = modal.querySelector('#imageLink');
-
-        closeBtn.addEventListener('click', () => modal.remove());
-
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const post = {
-                        author: 'João Silva',
-                        avatar: 'https://via.placeholder.com/40',
-                        content: '',
-                        time: 'Agora',
-                        likes: 0,
-                        comments: 0,
-                        shares: 0,
-                        type: 'image',
-                        mediaUrl: e.target.result
-                    };
-                    savePostToStorage(post);
-                    createNewPost('', 'image', e.target.result);
-                    modal.remove();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        googleImages.addEventListener('click', function() {
-            alert('Funcionalidade do Google Imagens será implementada em breve!');
-        });
-
-        imageLink.addEventListener('click', function() {
-            const url = prompt('Digite a URL da imagem:');
-            if (url) {
-                if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-                    const post = {
-                        author: 'João Silva',
-                        avatar: 'https://via.placeholder.com/40',
-                        content: '',
-                        time: 'Agora',
-                        likes: 0,
-                        comments: 0,
-                        shares: 0,
-                        type: 'image',
-                        mediaUrl: url
-                    };
-                    savePostToStorage(post);
-                    createNewPost('', 'image', url);
-                    modal.remove();
-                } else {
-                    alert('Por favor, insira uma URL válida de imagem (jpg, png, gif, webp)');
-                }
-            }
-        });
-
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    // Seletor de vídeos
-    function openVideoSelector() {
-        const videoModal = document.createElement('div');
-        videoModal.className = 'video-modal';
-        videoModal.innerHTML = `
-            <div class="video-modal-content">
-                <div class="video-modal-header">
-                    <h3>Adicionar Vídeo</h3>
-                    <span class="close-video-modal">&times;</span>
-                </div>
-                <div class="video-options">
-                    <label class="video-option">
-                        <i class="fas fa-folder-open"></i>
-                        <h4>Meu Arquivo</h4>
-                        <input type="file" accept="video/*" style="display: none;">
-                    </label>
-                    <div class="video-option" id="videoLink">
-                        <i class="fas fa-link"></i>
-                        <h4>Link do Vídeo</h4>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(videoModal);
-        setupVideoModalEvents(videoModal);
-    }
-
-    function setupVideoModalEvents(modal) {
-        const closeBtn = modal.querySelector('.close-video-modal');
-        const fileInput = modal.querySelector('input[type="file"]');
-        const videoLink = modal.querySelector('#videoLink');
-
-        closeBtn.addEventListener('click', () => modal.remove());
-
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const post = {
-                        author: 'João Silva',
-                        avatar: 'https://via.placeholder.com/40',
-                        content: '',
-                        time: 'Agora',
-                        likes: 0,
-                        comments: 0,
-                        shares: 0,
-                        type: 'video',
-                        mediaUrl: e.target.result
-                    };
-                    savePostToStorage(post);
-                    createNewPost('', 'video', e.target.result);
-                    modal.remove();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        videoLink.addEventListener('click', function() {
-            const url = prompt('Digite a URL do vídeo:');
-            if (url) {
-                if (url.match(/\.(mp4|webm|ogg|avi|mov)$/i)) {
-                    const post = {
-                        author: 'João Silva',
-                        avatar: 'https://via.placeholder.com/40',
-                        content: '',
-                        time: 'Agora',
-                        likes: 0,
-                        comments: 0,
-                        shares: 0,
-                        type: 'video',
-                        mediaUrl: url
-                    };
-                    savePostToStorage(post);
-                    createNewPost('', 'video', url);
-                    modal.remove();
-                } else {
-                    alert('Por favor, insira uma URL válida de vídeo (mp4, webm, ogg, avi, mov)');
-                }
-            }
-        });
-
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    // Seletor de links
-    function openLinkSelector() {
-        const linkModal = document.createElement('div');
-        linkModal.className = 'link-modal';
-        linkModal.innerHTML = `
-            <div class="link-modal-content">
-                <div class="link-modal-header">
-                    <h3>Adicionar Link</h3>
-                    <span class="close-link-modal">&times;</span>
-                </div>
-                <div class="link-options">
-                    <div class="link-option">
-                        <i class="fas fa-link"></i>
-                        <h4>URL de Mídia</h4>
-                        <input type="url" class="link-input" placeholder="Cole aqui a URL da imagem ou vídeo">
-                        <button class="preview-btn">Visualizar</button>
-                        <div class="preview-container"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(linkModal);
-        setupLinkModalEvents(linkModal);
-    }
-
-    function setupLinkModalEvents(modal) {
-        const closeBtn = modal.querySelector('.close-link-modal');
-        const linkInput = modal.querySelector('.link-input');
-        const previewBtn = modal.querySelector('.preview-btn');
-        const previewContainer = modal.querySelector('.preview-container');
-
-        closeBtn.addEventListener('click', () => modal.remove());
-
-        previewBtn.addEventListener('click', function() {
-            const url = linkInput.value;
-            if (url) {
-                if (url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-                    previewContainer.innerHTML = `<img src="${url}" class="preview-image" alt="Preview">`;
-                } else if (url.match(/\.(mp4|webm|ogg|avi|mov)$/i)) {
-                    previewContainer.innerHTML = `<video src="${url}" class="preview-video" controls></video>`;
-                } else {
-                    alert('URL não reconhecida como imagem ou vídeo válido');
-                }
-            }
-        });
-
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    // Sistema de sentimentos categorizados
-    function openFeelingSelector() {
-        const feelingModal = document.createElement('div');
-        feelingModal.className = 'feeling-modal';
-        feelingModal.innerHTML = `
-            <div class="feeling-modal-content">
-                <div class="feeling-modal-header">
-                    <h3>Como você está se sentindo?</h3>
-                    <span class="close-feeling-modal">&times;</span>
-                </div>
-                <div class="feeling-categories">
-                    <div class="feeling-category">
-                        <h4>😊 Alegre</h4>
-                        <div class="emojis-grid">
-                            <div class="emoji-item" data-emoji="😊">😊</div>
-                            <div class="emoji-item" data-emoji="😄">😄</div>
-                            <div class="emoji-item" data-emoji="😁">😁</div>
-                            <div class="emoji-item" data-emoji="🤗">🤗</div>
-                            <div class="emoji-item" data-emoji="🥳">🥳</div>
-                        </div>
-                    </div>
-                    <div class="feeling-category">
-                        <h4>😢 Triste</h4>
-                        <div class="emojis-grid">
-                            <div class="emoji-item" data-emoji="😢">😢</div>
-                            <div class="emoji-item" data-emoji="😭">😭</div>
-                            <div class="emoji-item" data-emoji="😔">😔</div>
-                            <div class="emoji-item" data-emoji="😞">😞</div>
-                            <div class="emoji-item" data-emoji="💔">💔</div>
-                        </div>
-                    </div>
-                    <div class="feeling-category">
-                        <h4>🤒 Doente</h4>
-                        <div class="emojis-grid">
-                            <div class="emoji-item" data-emoji="🤒">🤒</div>
-                            <div class="emoji-item" data-emoji="🤕">🤕</div>
-                            <div class="emoji-item" data-emoji="😷">😷</div>
-                            <div class="emoji-item" data-emoji="🤧">🤧</div>
-                            <div class="emoji-item" data-emoji="🤢">🤢</div>
-                        </div>
-                    </div>
-                    <div class="feeling-category">
-                        <h4>🤔 Dúvida</h4>
-                        <div class="emojis-grid">
-                            <div class="emoji-item" data-emoji="🤔">🤔</div>
-                            <div class="emoji-item" data-emoji="😕">😕</div>
-                            <div class="emoji-item" data-emoji="😐">😐</div>
-                            <div class="emoji-item" data-emoji="🤨">🤨</div>
-                            <div class="emoji-item" data-emoji="😶">😶</div>
-                        </div>
-                    </div>
-                    <div class="feeling-category">
-                        <h4>👍 Gostei</h4>
-                        <div class="emojis-grid">
-                            <div class="emoji-item" data-emoji="👍">👍</div>
-                            <div class="emoji-item" data-emoji="👏">👏</div>
-                            <div class="emoji-item" data-emoji="🙌">🙌</div>
-                            <div class="emoji-item" data-emoji="💪">💪</div>
-                            <div class="emoji-item" data-emoji="🔥">🔥</div>
-                        </div>
-                    </div>
-                    <div class="feeling-category">
-                        <h4>👎 Não Gostei</h4>
-                        <div class="emojis-grid">
-                            <div class="emoji-item" data-emoji="👎">👎</div>
-                            <div class="emoji-item" data-emoji="😤">😤</div>
-                            <div class="emoji-item" data-emoji="😠">😠</div>
-                            <div class="emoji-item" data-emoji="🤬">🤬</div>
-                            <div class="emoji-item" data-emoji="💢">💢</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Adicionar estilos
-        const style = document.createElement('style');
-        style.textContent += `
-            .feeling-modal {
-                display: flex;
-                position: fixed;
-                z-index: 3000;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.8);
-                align-items: center;
-                justify-content: center;
-            }
-            .feeling-modal-content {
-                background: white;
-                border-radius: 12px;
-                width: 90%;
-                max-width: 600px;
-                max-height: 80vh;
-                overflow-y: auto;
-            }
-            .feeling-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 20px;
-                border-bottom: 1px solid #e1e1e1;
-            }
-            .feeling-modal-header h3 {
-                color: #00a400;
-                margin: 0;
-            }
-            .close-feeling-modal {
-                font-size: 24px;
-                cursor: pointer;
-                color: #666;
-            }
-            .feeling-categories {
-                padding: 20px;
-            }
-            .feeling-category {
-                margin-bottom: 20px;
-            }
-            .feeling-category h4 {
-                color: #333;
-                margin-bottom: 10px;
-                font-size: 16px;
-            }
-            .emojis-grid {
-                display: grid;
-                grid-template-columns: repeat(5, 1fr);
-                gap: 10px;
-            }
-            .emoji-item {
-                font-size: 2rem;
-                text-align: center;
-                padding: 10px;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            }
-            .emoji-item:hover {
-                background: #f0f2f5;
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(feelingModal);
-
-        setupFeelingModalEvents(feelingModal);
-    }
-
-    function setupFeelingModalEvents(modal) {
-        const closeBtn = modal.querySelector('.close-feeling-modal');
-        const emojiItems = modal.querySelectorAll('.emoji-item');
-
-        closeBtn.addEventListener('click', () => modal.remove());
-
-        emojiItems.forEach(item => {
-            item.addEventListener('click', function() {
-                const emoji = this.dataset.emoji;
-                if (postText) {
-                    const text = postText.value;
-                    postText.value = text + ` ${emoji}`;
-                }
-                modal.remove();
-            });
-        });
-
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    // Inicializar sistema de posts temporários
-    setupTemporaryPosts();
+    });
 });

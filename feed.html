@@ -4,15 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IfSpace - Feed</title>
-    <link rel="stylesheet" href="styles/feed.css">
+    <link rel="stylesheet" href="styles/feed.css?v=1.0"> <!-- Cache busting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Firebase App (a base) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <!-- Add Firebase products that you want to use -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
 </head>
 <body>
     <header class="header">
@@ -31,25 +24,23 @@
                 <button class="header-btn">
                     <i class="fas fa-bell"></i>
                 </button>
-                        <!-- BOTÃO DE SAIR NO HEADER -->
-        <button class="header-btn" id="logoutButton">
-            <i class="fas fa-sign-out-alt"></i> <!-- Ícone de sair -->
-        </button>
-        <button class="header-btn">
-            <i class="fas fa-user"></i>
-        </button>
-    </div>
-</div>
-</header>
+                <button class="header-btn" id="logoutButton">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <button class="header-btn">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </div>
+    </header>
 
     <div class="main-container">
         <div class="sidebar-left">
             <div class="user-info">
-                 <img id="profileImage" src="https://via.placeholder.com/50" alt="Perfil" class="profile-img">
-
-                  <span id="userName">Carregando...</span>
-             </div>
-                 <nav class="nav-menu">
+                <img src="https://placehold.co/50x50?text=AV" alt="Profile Image" id="profileImage" class="profile-img">
+                <span id="userName">Carregando...</span>
+            </div>
+            <nav class="nav-menu">
                 <a href="#" class="nav-item active">
                     <i class="fas fa-home"></i>
                     Início
@@ -70,9 +61,8 @@
         </div>
 
         <div class="main-content">
-            <!-- Stories Section -->
             <div class="stories-section">
-                <div class="story-container">
+                <div class="story-container" id="storiesContainer">
                     <div class="story-item create-story">
                         <div class="story-content">
                             <i class="fas fa-plus"></i>
@@ -80,24 +70,23 @@
                         </div>
                     </div>
                     <div class="story-item">
-                        <img src="https://via.placeholder.com/60" alt="Story">
+                        <img src="https://placehold.co/60x60?text=S" alt="Story">
                         <span>Maria</span>
                     </div>
                     <div class="story-item">
-                        <img src="https://via.placeholder.com/60" alt="Story">
+                        <img src="https://placehold.co/50x50?text=AV" alt="Profile Image" class="profile-img">
                         <span>Pedro</span>
                     </div>
                     <div class="story-item">
-                        <img src="https://via.placeholder.com/60" alt="Story">
+                        <img src="https://placehold.co/50x50?text=AV" alt="Profile Image" class="profile-img">
                         <span>Ana</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Create Post -->
             <div class="create-post">
                 <div class="post-header">
-                    <img src="https://via.placeholder.com/40" alt="Perfil" class="profile-img">
+                    <img src="https://placehold.co/40x40?text=AV" alt="User" class="profile-img">
                     <input type="text" placeholder="No que você está pensando?" id="postText">
                 </div>
                 <div class="post-actions">
@@ -114,9 +103,10 @@
                         Sentimento
                     </button>
                 </div>
+                <!-- Campo oculto para upload de imagem -->
+                <input type="file" id="imageUploadInput" accept="image/*" style="display: none;">
             </div>
 
-            <!-- Posts Feed -->
             <div class="posts-feed" id="postsFeed">
                 <!-- Posts will be dynamically added here -->
             </div>
@@ -132,7 +122,6 @@
         </div>
     </div>
 
-    <!-- Feeling Modal -->
     <div class="modal" id="feelingModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -161,77 +150,8 @@
             <p>&copy; 2024 IfSpace. Todos os direitos reservados.</p>
         </div>
     </footer>
-<!-- === SNIPPET DO FIREBASE === -->
-<script type="module">
-    console.log("-> Firebase snippet starting execution in feed.html.");
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-    import { 
-        getFirestore, 
-        doc, 
-        getDoc,
-        collection,       
-        query,            
-        orderBy,          
-        limit,            
-        getDocs,          
-        addDoc,           
-        serverTimestamp,  
-        startAfter        
-    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js"; 
-    import { 
-        getStorage,
-        ref,              
-        uploadBytes,      
-        getDownloadURL    
-    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js"; 
-    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-functions.js"; 
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDQ_hTliPlLpW2W6ACCoka1HD5So0K9b9Q",
-        authDomain: "redeifspace.firebaseapp.com",
-        projectId: "redeifspace",
-        storageBucket: "redeifspace.firebasestorage.app",
-        messagingSenderId: "237485490117",
-        appId: "1:237485490117:web:6ad953ad50e6097cb7d5ac",
-        measurementId: "G-JKRWBEBJKV"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-    const functions = getFunctions(app, "us-central1"); 
-   
-    // Torne as funções e objetos do Firebase globais para serem acessados pelo scripts/feed.js
-    window.firebaseAuth = auth;
-    window.firebaseOnAuthStateChanged = onAuthStateChanged;
-    window.firebaseSignOut = signOut;
-    window.firebaseFirestore = db;
-    window.firebaseFirestoreDoc = doc;
-    window.firebaseFirestoreGetDoc = getDoc;
-    window.firebaseFirestoreCollection = collection;       
-    window.firebaseFirestoreQuery = query;                 
-    window.firebaseFirestoreOrderBy = orderBy;             
-    window.firebaseFirestoreLimit = limit;                 
-    window.firebaseFirestoreGetDocs = getDocs;             
-    window.firebaseFirestoreAddDoc = addDoc;               
-    window.firebaseFirestoreServerTimestamp = serverTimestamp; 
-    window.firebaseFirestoreStartAfter = startAfter;       
-    window.firebaseStorage = storage; 
-    window.firebaseStorageRef = ref;                       
-    window.firebaseStorageUploadBytes = uploadBytes;         
-    window.firebaseStorageGetDownloadURL = getDownloadURL;   
-    window.firebaseFunctions = functions; 
-    window.firebaseHttpsCallable = httpsCallable; 
-
-    console.log("-> Firebase snippet finished execution in feed.html. Auth, Firestore, Storage and Functions available.");
-</script>
-
-
-
-    <script type="module" src="scripts/feed.js"></script>
+    <!-- Remova o snippet inline do Firebase, pois será gerenciado pelo feed.js -->
+    <script type="module" src="scripts/feed.js?v=1.0"></script> <!-- Cache busting -->
 </body>
 </html>

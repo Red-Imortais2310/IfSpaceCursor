@@ -1,183 +1,63 @@
-// Firebase Configuration
+// scripts/firebase-config.js
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, serverTimestamp, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
-// SUAS CONFIGURAÇÕES DO FIREBASE - SUBSTITUA PELOS SEUS VALORES
 const firebaseConfig = {
-    apiKey: "SUA_API_KEY_AQUI",
-    authDomain: "seu-projeto-id.firebaseapp.com",
-    projectId: "seu-projeto-id",
-    storageBucket: "seu-projeto-id.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
+    apiKey: "AIzaSyDQ_hTliPlLpW2W6ACCoka1HD5So0K9b9Q",
+    authDomain: "redeifspace.firebaseapp.com",
+    projectId: "redeifspace",
+    storageBucket: "redeifspace.firebasestorage.app",
+    messagingSenderId: "237485490117",
+    appId: "1:237485490117:web:6ad953ad50e6097cb7d5ac",
+    measurementId: "G-JKRWBEBJKV"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
 
-// Funções do Firebase
-export const firebaseAuth = auth;
-export const firebaseDb = db;
-export const firebaseStorage = storage;
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
-// Função para fazer login
-export async function loginUser(email, password) {
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return { success: true, user: userCredential.user };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
+export const onAuthStateChange = (callback) => onAuthStateChanged(auth, callback);
 
-// Função para criar usuário
-export async function createUser(email, password, userData) {
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        
-        // Salvar dados adicionais do usuário
-        await setDoc(doc(db, 'users', user.uid), {
-            email: user.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            birthday: userData.birthday,
-            gender: userData.gender,
-            createdAt: serverTimestamp()
-        });
-        
-        return { success: true, user: user };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-
-// Função para fazer logout
-export async function logoutUser() {
-    try {
-        await signOut(auth);
-        return { success: true };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-
-// Função para salvar post no Firebase
 export async function savePostToFirebase(postData) {
     try {
-        const docRef = await addDoc(collection(db, 'posts'), {
+        const docRef = await addDoc(collection(db, "posts"), {
             ...postData,
-            createdAt: serverTimestamp(),
-            likes: 0,
-            comments: 0,
-            shares: 0
+            timestamp: serverTimestamp()
         });
+        console.log("Post salvo com ID: ", docRef.id);
         return { success: true, id: docRef.id };
-    } catch (error) {
-        return { success: false, error: error.message };
+    } catch (e) {
+        console.error("Erro ao salvar post: ", e);
+        return { success: false, error: e.message };
     }
 }
 
-// Função para carregar posts do Firebase
-export async function loadPostsFromFirebase() {
-    try {
-        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
-        const querySnapshot = await getDocs(q);
-        const posts = [];
-        querySnapshot.forEach((doc) => {
-            posts.push({ id: doc.id, ...doc.data() });
-        });
-        return { success: true, posts: posts };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
+export const onPostsChange = (callback) => {
+    const postsCollection = collection(db, "posts");
+    const unsubscribe = onSnapshot(postsCollection, (snapshot) => {
+        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        callback(posts);
+    });
+    return unsubscribe;
+};
 
-// Função para salvar story no Firebase
-export async function saveStoryToFirebase(storyData) {
-    try {
-        const docRef = await addDoc(collection(db, 'stories'), {
-            ...storyData,
-            createdAt: serverTimestamp(),
-            views: 0
-        });
-        return { success: true, id: docRef.id };
-    } catch (error) {
-        return { success: false, error: error.message };
+export async function uploadProfilePicture(file, userId) {
+    if (!file || !userId) {
+        console.error("File and userId are required for uploadProfilePicture.");
+        return null;
     }
-}
-
-// Função para upload de arquivo
-export async function uploadFileToFirebase(file, path) {
+    const storageRef = ref(storage, `profile_pictures/${userId}/${file.name}`);
     try {
-        const storageRef = ref(storage, path);
         const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
-        return { success: true, url: downloadURL };
+        console.log('Profile picture uploaded successfully:', downloadURL);
+        return downloadURL;
     } catch (error) {
-        return { success: false, error: error.message };
+        console.error("Error uploading profile picture:", error);
+        throw error;
     }
-}
-
-// Função para salvar mensagem no Firebase
-export async function saveMessageToFirebase(messageData) {
-    try {
-        const docRef = await addDoc(collection(db, 'messages'), {
-            ...messageData,
-            createdAt: serverTimestamp(),
-            read: false
-        });
-        return { success: true, id: docRef.id };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-
-// Função para carregar mensagens do Firebase
-export async function loadMessagesFromFirebase(chatId) {
-    try {
-        const q = query(collection(db, 'messages'), orderBy('createdAt', 'asc'));
-        const querySnapshot = await getDocs(q);
-        const messages = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.chatId === chatId) {
-                messages.push({ id: doc.id, ...data });
-            }
-        });
-        return { success: true, messages: messages };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-
-// Listener para mudanças de autenticação
-export function onAuthStateChange(callback) {
-    return onAuthStateChanged(auth, callback);
-}
-
-// Listener para posts em tempo real
-export function onPostsChange(callback) {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(50));
-    return onSnapshot(q, callback);
-}
-
-// Listener para mensagens em tempo real
-export function onMessagesChange(chatId, callback) {
-    const q = query(collection(db, 'messages'), orderBy('createdAt', 'asc'));
-    return onSnapshot(q, (snapshot) => {
-        const messages = [];
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.chatId === chatId) {
-                messages.push({ id: doc.id, ...data });
-            }
-        });
-        callback(messages);
-    });
 }

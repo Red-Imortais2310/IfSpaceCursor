@@ -453,11 +453,12 @@ body {
 .post-link-preview p {
     color: #65676b;
     font-size: 0.9em;
-    margin-bottom: 5px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+margin-bottom: 5px;
+display: -webkit-box;
+-webkit-box-orient: vertical;
+line-clamp: 2;
+-webkit-line-clamp: 2;
+overflow: hidden;
 }
 
 @media (max-width: 768px) {

@@ -159,7 +159,85 @@ exports.setAdminClaim = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', `Falha ao definir claim de admin: ${error.message}`);
     }
 });
+// =========================================================================
+// NOVO: Função para obter metadados (prévia) de um link
+// =========================================================================
 
+// Importar bibliotecas que precisaremos para esta função
+// IMPORTANTE: Você precisará instalar estas bibliotecas! (Passo 2)
+const axios = require('axios'); // Para fazer requisições HTTP
+const cheerio = require('cheerio'); // Para parsear HTML e extrair dados
+
+exports.getLinkMetadata = functions.https.onCall(async (data, context) => {
+    console.log('getLinkMetadata: Função chamada.');
+
+    // Verificação de autenticação: Apenas usuários logados podem solicitar prévias de link
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'A solicitação deve ser autenticada para obter metadados de link.'
+        );
+    }
+
+    const { url } = data; // A URL do link será passada via `data`
+
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'URL inválida fornecida.'
+        );
+    }
+
+    try {
+        console.log(`getLinkMetadata: Buscando URL: ${url}`);
+        // Faz a requisição HTTP para a URL
+        const response = await axios.get(url, {
+            headers: {
+                // Algumas páginas podem bloquear user-agents de bots, então simulamos um navegador
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            timeout: 5000 // Limite de tempo para a requisição (5 segundos)
+        });
+
+        const $ = cheerio.load(response.data); // Carrega o HTML da página
+
+        // Extrai os metadados Open Graph
+        const title = $('meta[property="og:title"]').attr('content') || $('title').text();
+        const description = $('meta[property="og:description"]').attr('content') || $('meta[name="description"]').attr('content');
+        const image = $('meta[property="og:image"]').attr('content');
+        const siteName = $('meta[property="og:site_name"]').attr('content');
+        const favicon = $('link[rel="icon"]').attr('href') || $('link[rel="shortcut icon"]').attr('href');
+
+        console.log('getLinkMetadata: Metadados extraídos com sucesso.');
+        return {
+            status: 'success',
+            data: {
+                title: title || url, // Se não encontrar título, usa a URL
+                description: description || '',
+                image: image || null,
+                url: url, // Retorna a URL original
+                siteName: siteName || '',
+                favicon: favicon ? (favicon.startsWith('http') ? favicon : new URL(favicon, url).href) : null // Trata favicons relativos
+            }
+        };
+
+    } catch (error) {
+        console.error(`getLinkMetadata: Erro ao obter metadados para ${url}:`, error.message);
+        // Retorna um erro amigável, mas mantém a URL e um placeholder
+        return {
+            status: 'error',
+            message: `Não foi possível obter a prévia do link. Erro: ${error.message.substring(0, 100)}...`,
+            data: {
+                title: `Link: ${url.substring(0, 50)}...`,
+                description: `Não foi possível carregar a prévia.`,
+                image: 'https://via.placeholder.com/150x100?text=Link+Erro', // Imagem de erro
+                url: url,
+                siteName: '',
+                favicon: null
+            }
+        };
+    }
+});
 
 
 

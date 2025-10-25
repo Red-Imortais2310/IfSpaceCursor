@@ -1,87 +1,139 @@
 // scripts/login.js
+import { auth, db, uploadProfilePicture } from './firebase-config.js';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-console.log("-> login.js starting execution (before DOMContentLoaded)."); // DEBUG
-
-// Importar funções do Firebase
-import { loginUser, onAuthStateChange } from './firebase-config.js';
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOMContentLoaded fired in login.js."); // DEBUG
-
+document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
-    const forgotPasswordLink = document.getElementById('forgotPassword');
-    const registerLink = document.getElementById('register');
-    const rememberCheckbox = document.getElementById('remember');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
+    const registerForm = document.getElementById('registerForm');
+    const showRegisterFormLink = document.getElementById('showRegisterForm');
+    const backToLoginLink = document.getElementById('backToLogin');
+    const selectProfilePictureBtn = document.getElementById('selectRegisterProfilePictureBtn');
+    const profilePictureInput = document.getElementById('registerProfilePictureInput');
+    const profileImagePreview = document.getElementById('registerProfileImagePreview');
+    const uploadStatus = document.getElementById('registerUploadStatus');
 
-    if (!loginForm) {
-        console.error("ERROR: 'loginForm' (ID) not found in the HTML! Submit listener NOT attached."); // CRITICAL DEBUG
-        return;
-    } else {
-        console.log("'loginForm' element found."); // DEBUG
+    // Alternar entre formulários
+    if (showRegisterFormLink) {
+        showRegisterFormLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+        });
     }
 
-    // --- MANEJAR O ENVIO DO FORMULÁRIO DE LOGIN ---
-    loginForm.addEventListener('submit', async function(e) { // Adicione 'async' aqui!
-        console.log("Submit event fired on loginForm."); // DEBUG
-        e.preventDefault(); // Impede o envio padrão do formulário
-        
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-        
-        if (!email || !password) {
-            alert('Por favor, preencha todos os campos.');
-            return;
-        }
+    if (backToLoginLink) {
+        backToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerForm.style.display = 'none';
+            loginForm.style.display = 'block';
+        });
+    }
 
-        try {
-            console.log("Attempting Firebase login with email:", email); // DEBUG
-            
-            // Usar a função do firebase-config.js
-            const result = await loginUser(email, password);
-            
-            if (result.success) {
-                console.log('Usuário logado com sucesso no Firebase:', result.user); // DEBUG
+    // Pré-visualização da imagem de perfil
+    if (selectProfilePictureBtn && profilePictureInput) {
+        selectProfilePictureBtn.addEventListener('click', () => {
+            profilePictureInput.click();
+        });
 
-                // Salvar APENAS o email no localStorage se "Salvar email" estiver marcado
-                if (rememberCheckbox.checked) {
-                    localStorage.setItem('ifspace_email', email);
-                    // NUNCA SALVE A SENHA NO LOCALSTORAGE POR RAZÕES DE SEGURANÇA!
-                } else {
-                    localStorage.removeItem('ifspace_email'); // Se desmarcado, remove o email salvo
-                }
-                
-                // Redirecionar para o feed após o login bem-sucedido
-                alert('Login bem-sucedido! Redirecionando para o feed...');
-                window.location.href = 'feed.html';
-            } else {
-                alert('Erro ao fazer login: ' + result.error);
+        profilePictureInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    profileImagePreview.src = event.target.result;
+                    uploadStatus.textContent = 'Imagem selecionada!';
+                    uploadStatus.style.display = 'block';
+                    uploadStatus.style.color = 'green';
+                    setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Login
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!email || !password) {
+                alert('Por favor, preencha email e senha.');
+                return;
             }
 
-        } catch (error) {
-            console.error('Erro ao fazer login no Firebase:', error); // DEBUG
-            alert('Erro ao fazer login: ' + error.message);
-        }
-    });
-
-    // --- MANEJAR CLICKS DOS LINKS ---
-    forgotPasswordLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = 'recuperar-senha.html';
-    });
-
-    registerLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = 'cadastro.html';
-    });
-
-    // --- CARREGAR DADOS SALVOS (EMAIL APENAS) ---
-    const savedEmail = localStorage.getItem('ifspace_email');
-    
-    if (savedEmail) {
-        emailInput.value = savedEmail;
-        rememberCheckbox.checked = true; // Marca a caixa se houver email salvo
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                console.log("Usuário logado com sucesso.");
+                window.location.href = 'feed.html';
+            } catch (error) {
+                console.error("Erro no login:", error);
+                alert(`Erro: ${error.message}`);
+            }
+        });
     }
-    // As credenciais de login simuladas foram removidas daqui
+
+    // Cadastro
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value.trim();
+            const confirmPassword = document.getElementById('confirmPassword').value.trim();
+            const file = profilePictureInput ? profilePictureInput.files[0] : null;
+
+            if (!email || !password || !confirmPassword) {
+                uploadStatus.textContent = 'Por favor, preencha todos os campos.';
+                uploadStatus.style.display = 'block';
+                uploadStatus.style.color = 'red';
+                setTimeout(() => { uploadStatus.style.display = 'none'; }, 5000);
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                uploadStatus.textContent = 'As senhas não coincidem.';
+                uploadStatus.style.display = 'block';
+                uploadStatus.style.color = 'red';
+                setTimeout(() => { uploadStatus.style.display = 'none'; }, 5000);
+                return;
+            }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                console.log("Usuário cadastrado:", user.uid);
+
+                let profilePictureUrl = 'https://placehold.co/50x50?text=AV';
+
+                if (file) {
+                    profilePictureUrl = await uploadProfilePicture(file, user.uid);
+                    if (!profilePictureUrl) {
+                        throw new Error('Falha ao fazer upload da imagem de perfil.');
+                    }
+                    console.log("Imagem de perfil enviada:", profilePictureUrl);
+                    uploadStatus.textContent = 'Imagem enviada com sucesso!';
+                    uploadStatus.style.display = 'block';
+                    uploadStatus.style.color = 'green';
+                    setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+                }
+
+                await setDoc(doc(db, 'users', user.uid), {
+                    email: email,
+                    profilePictureUrl: profilePictureUrl,
+                    createdAt: serverTimestamp()
+                });
+
+                console.log("Dados do usuário salvos no Firestore.");
+                window.location.href = 'feed.html';
+            } catch (error) {
+                console.error("Erro no cadastro:", error);
+                uploadStatus.textContent = `Erro: ${error.message}`;
+                uploadStatus.style.display = 'block';
+                uploadStatus.style.color = 'red';
+                setTimeout(() => { uploadStatus.style.display = 'none'; }, 5000);
+            }
+        });
+    }
 });
