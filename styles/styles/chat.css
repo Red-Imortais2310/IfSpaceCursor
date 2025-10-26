@@ -1,0 +1,321 @@
+/* styles/chat.css */
+
+/* --- Layout Principal --- */
+.chat-container {
+    display: flex;
+    max-width: 1200px;
+    margin: 20px auto;
+    height: 90vh;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* --- Sidebar (Lista de Amigos) --- */
+.sidebar {
+    width: 300px;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    background-color: #f7f7f7;
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.4em;
+}
+
+.friends-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.friend-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.friend-item:hover {
+    background-color: #e9e9e9;
+}
+
+.friend-item.active {
+    background-color: #d8e6ff; /* Cor de seleção */
+}
+
+.friend-item img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 12px;
+}
+
+.friend-info {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.friend-name {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.friend-status {
+    font-size: 0.85em;
+    color: #666;
+}
+
+/* --- Main Chat Window --- */
+.chat-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Header do Chat --- */
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #ffffff;
+    flex-shrink: 0;
+}
+
+.chat-user-info {
+    display: flex;
+    align-items: center;
+}
+
+.chat-user-info .default-avatar {
+    font-size: 2.2em;
+    color: #007bff;
+    margin-right: 10px;
+}
+
+.user-details h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+}
+
+.user-details span {
+    color: #888;
+    font-size: 0.85em;
+}
+
+.chat-actions button {
+    background: none;
+    border: none;
+    color: #007bff;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: color 0.2s;
+}
+
+.chat-actions button:hover {
+    color: #0056b3;
+}
+
+/* --- Container de Mensagens --- */
+.chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #fafafa;
+}
+
+.welcome-message {
+    text-align: center;
+    margin-top: 50px;
+    color: #aaa;
+}
+
+.welcome-message i {
+    font-size: 3em;
+    margin-bottom: 15px;
+    color: #ccc;
+}
+
+/* --- Estilos de Mensagem --- */
+.message {
+    display: flex;
+    margin-bottom: 15px;
+    max-width: 75%;
+    position: relative;
+}
+
+.message-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    margin-right: 8px;
+    align-self: flex-end;
+}
+
+.message-content {
+    padding: 10px 15px;
+    border-radius: 18px;
+    line-height: 1.4;
+    position: relative;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.message-time {
+    font-size: 0.7em;
+    color: #888;
+    margin-top: 4px;
+}
+
+/* Mensagens Enviadas (Eu) */
+.message.sent {
+    margin-left: auto;
+    flex-direction: column; /* Para alinhar o tempo abaixo */
+    align-items: flex-end;
+}
+
+.message.sent .message-content {
+    background-color: #007bff;
+    color: white;
+    border-bottom-right-radius: 2px;
+}
+
+.message.sent .message-time {
+    text-align: right;
+}
+
+/* Mensagens Recebidas (Amigo) */
+.message.received {
+    margin-right: auto;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.message.received .message-content {
+    background-color: #e5e5ea;
+    color: #333;
+    border-bottom-left-radius: 2px;
+}
+
+.message.received .message-time {
+    margin-left: 10px;
+    order: 3; /* Coloca o tempo depois do conteúdo */
+}
+
+/* --- Mídia (Imagens/Audio) --- */
+.message-content img {
+    max-width: 100%;
+    max-height: 250px;
+    border-radius: 8px;
+    display: block;
+    margin-top: 5px;
+}
+
+.message-content audio {
+    width: 200px;
+    display: block;
+}
+
+/* --- Input Area --- */
+.chat-input-area {
+    display: flex;
+    padding: 10px 20px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #fff;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+#messageInput {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    font-size: 1em;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#messageInput:focus {
+    border-color: #007bff;
+}
+
+.chat-input-area button {
+    background: none;
+    border: none;
+    color: #007bff;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 8px;
+    transition: color 0.2s;
+}
+
+.chat-input-area button:hover {
+    color: #0056b3;
+}
+
+/* --- Reações / Curtidas (Integração) --- */
+.reaction-emoji {
+    position: absolute;
+    bottom: -10px;
+    right: 5px; 
+    font-size: 1.1em;
+    background: white;
+    border-radius: 50%;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+/* Ícone de curtida que aparece ao passar o mouse */
+.like-icon-container {
+    position: absolute;
+    top: -25px; 
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    z-index: 10;
+}
+
+.message:hover .like-icon-container {
+    display: block; /* Mostra o menu ao passar o mouse */
+}
+
+.reaction-menu {
+    background: white;
+    border-radius: 50px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    padding: 5px;
+    display: flex;
+    gap: 5px;
+}
+
+.reaction-menu span {
+    cursor: pointer;
+    font-size: 1.2em;
+    transition: transform 0.1s;
+}
+
+.reaction-menu span:hover {
+    transform: scale(1.2);
+}

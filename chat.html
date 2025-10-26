@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IfSpace - Chat</title>
+    <link rel="stylesheet" href="styles/styles/chat.css"> 
+    <link rel="stylesheet" href="styles/styles/chat.css"> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="chat-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Mensagens</h2>
+            </div>
+            <ul id="friendsList" class="friends-list">
+                </ul>
+        </aside>
+
+        <main class="chat-main">
+            <div class="chat-header">
+                <div class="chat-user-info">
+                    <i class="fas fa-user-circle default-avatar"></i>
+                    <div class="user-details">
+                        <h3>Selecione um Contato</h3>
+                        <span></span>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <button><i class="fas fa-video"></i></button>
+                </div>
+            </div>
+
+            <div id="chatMessages" class="chat-messages">
+                <div class="welcome-message">
+                    <i class="fas fa-hand-pointer"></i>
+                    <h3>Bem-vindo ao Chat</h3>
+                    <p>Selecione um contato na barra lateral para começar a conversar.</p>
+                </div>
+            </div>
+
+            <div id="chatInput" class="chat-input-area" style="display: none;">
+                <input type="file" id="mediaUploadInput" accept="image/*,audio/*" style="display: none;">
+                <button id="uploadMediaBtn" title="Enviar Imagem/Áudio"><i class="fas fa-paperclip"></i></button>
+                <button id="emojiBtn" title="Emojis"><i class="fas fa-face-smile"></i></button>
+                
+                <input type="text" id="messageInput" placeholder="Escreva sua mensagem...">
+                
+                <button id="sendBtn" title="Enviar Mensagem"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="scripts/scripts/chat.js"></script>
+</body>
+</html>

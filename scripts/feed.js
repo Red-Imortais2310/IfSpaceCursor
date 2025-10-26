@@ -3,32 +3,16 @@ console.log("-> feed.js starting execution.");
 
 import { auth, db, storage, onAuthStateChange, savePostToFirebase, onPostsChange } from './firebase-config.js';
 import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
-import { doc, getDoc, collection, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+// CORREÇÃO CRÍTICA 1: Adicionar getDocs para buscar a lista de usuários no Firestore.
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, updateDoc, arrayUnion, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // Variáveis do DOM e estado
 let liveBtn, photoBtn, feelingBtn, feelingModal, closeModal, emojisGrid, postsFeed, postText, messagesBtn, contactsList, userNameSpan, profileImage, logoutButton, mainContentArea, imageUploadInput;
 let currentUserId = null;
 
-// Dados de exemplo para contatos
-const exampleContacts = [
-    { name: 'João Silva', img: 'https://placehold.co/40x40/007bff/ffffff?text=JS' },
-    { name: 'Maria Souza', img: 'https://placehold.co/40x40/28a745/ffffff?text=MS' },
-    { name: 'Pedro Santos', img: 'https://placehold.co/40x40/ffc107/333333?text=PS' },
-    { name: 'Ana Costa', img: 'https://placehold.co/40x40/dc3545/ffffff?text=AC' },
-    { name: 'Lucas Oliveira', img: 'https://placehold.co/40x40/6f42c1/ffffff?text=LO' },
-    { name: 'Juliana Lima', img: 'https://placehold.co/40x40/e83e8c/ffffff?text=JL' },
-    { name: 'Carlos Ferreira', img: 'https://placehold.co/40x40/17a2b8/ffffff?text=CF' },
-    { name: 'Fernanda Rocha', img: 'https://placehold.co/40x40/fd7e14/ffffff?text=FR' },
-    { name: 'Rafael Alves', img: 'https://placehold.co/40x40/6c757d/ffffff?text=RA' },
-    { name: 'Beatriz Gomes', img: 'https://placehold.co/40x40/00bcd4/ffffff?text=BG' },
-    { name: 'Gustavo Martins', img: 'https://placehold.co/40x40/e91e63/ffffff?text=GM' },
-    { name: 'Larissa Vieira', img: 'https://placehold.co/40x40/ff9800/ffffff?text=LV' },
-    { name: 'Diego Nogueira', img: 'https://placehold.co/40x40/9c27b0/ffffff?text=DN' },
-    { name: 'Camila Ribeiro', img: 'https://placehold.co/40x40/4caf50/ffffff?text=CR' },
-    { name: 'Eduardo Pires', img: 'https://placehold.co/40x40/795548/ffffff?text=EP' }
-];
+// REMOÇÃO 1: O array 'exampleContacts' foi removido para usar os dados do Firestore.
 
-// Funções auxiliares
+// Funções auxiliares (mantidas)
 function detectLinks(text) {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     return text.match(urlRegex);
@@ -51,7 +35,25 @@ async function handleMediaUpload(file, type) {
 }
 
 async function createLinkPreview(url) {
-    console.warn("Função createLinkPreview requer implementação de backend.");
+    if (!url) return {
+        title: "Link Inválido",
+        description: "Por favor, insira uma URL válida.",
+        image: 'https://placehold.co/150x100?text=Preview+Error'
+    };
+
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(youtubeRegex);
+    if (match && match[4]) {
+        const videoId = match[4];
+        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+        return {
+            title: "Vídeo do YouTube",
+            description: `Assista ao vídeo: ${url.substring(0, 50)}...`,
+            image: thumbnailUrl
+        };
+    }
+
+    console.warn("Link não reconhecido como YouTube. Implementação de backend necessária para outros casos.");
     return {
         title: "Link Externo",
         description: url.substring(0, 50) + '...',
@@ -59,9 +61,11 @@ async function createLinkPreview(url) {
     };
 }
 
+// Função createPostElement (Mantida)
 function createPostElement(post) {
     const postDiv = document.createElement('div');
     postDiv.className = 'post';
+    postDiv.dataset.postId = post.id;
 
     let timeDisplay = post.time || 'Agora';
     if (post.timestamp instanceof Date) {
@@ -70,61 +74,141 @@ function createPostElement(post) {
         timeDisplay = post.timestamp.toDate().toLocaleString('pt-BR');
     }
 
-    let mediaContent = '';
-    if (post.type === 'image' && post.mediaUrl) {
-        mediaContent = `<img src="${post.mediaUrl}" alt="Imagem do post" class="post-image" onerror="this.src='https://placehold.co/400x300?text=Image+Error'">`;
-    } else if (post.type === 'video' && post.mediaUrl) {
-        mediaContent = `
-            <div class="post-video">
-                <video controls>
-                    <source src="${post.mediaUrl}" type="video/mp4" onerror="this.parentElement.innerHTML='<img src=https://placehold.co/400x300?text=Video+Error>'">
-                </video>
-            </div>
-        `;
-    } else if (post.type === 'link' && post.preview) {
-        mediaContent = `
-            <div class="post-link-preview">
-                <img src="${post.preview.image || 'https://placehold.co/150x100?text=Link+Preview'}" alt="Link preview" onerror="this.src='https://placehold.co/150x100?text=Preview+Error'">
-                <h4>${post.preview.title || 'Link sem título'}</h4>
-                <p>${post.preview.description || 'Clique para ver o conteúdo.'}</p>
-            </div>
-        `;
-    }
-
     const likes = post.likes || 0;
-    const comments = post.comments || 0;
-    const shares = post.shares || 0;
-
+    const comments = post.comments?.length || 0;
+    const shares = post.shares || 0; 
     const defaultAvatar = 'https://placehold.co/40x40?text=AV';
+    
+    // --- LÓGICA DE EXIBIÇÃO DE MÍDIA ORIGINAL ---
+    const renderMedia = (p) => {
+        if (p.type === 'image' && p.mediaUrl) {
+            return `<img src="${p.mediaUrl}" alt="Imagem do post" class="post-image" onerror="this.src='https://placehold.co/400x300?text=Image+Error'">`;
+        }
+        if (p.type === 'video' && p.mediaUrl) {
+             return `
+                <div class="post-video">
+                    <video controls>
+                        <source src="${p.mediaUrl}" type="video/mp4" onerror="this.parentElement.innerHTML='<img src=https://placehold.co/400x300?text=Video+Error>'">
+                    </video>
+                </div>
+            `;
+        }
+        if (p.type === 'link' && p.preview) {
+            return `
+                <div class="post-link-preview" onclick="window.open('${p.content}', '_blank')">
+                    <img src="${p.preview.image || 'https://placehold.co/150x100?text=Link+Preview'}" alt="Link preview" onerror="this.src='https://placehold.co/150x100?text=Preview+Error'">
+                    <h4>${p.preview.title || 'Link sem título'}</h4>
+                    <p>${p.preview.description || 'Clique para ver o conteúdo.'}</p>
+                </div>
+            `;
+        }
+        return '';
+    };
 
-    postDiv.innerHTML = `
-        <div class="post-header">
-            <img src="${post.avatar || defaultAvatar}" alt="${post.author}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=AV'">
-            <div>
-                <h4>${post.author || 'Usuário IfSpace'}</h4>
-                <span>${timeDisplay}</span>
+    // Se for um post do tipo 'repost', cria uma estrutura diferente
+    if (post.type === 'repost' && post.originalPostContent) {
+        
+        // Conteúdo do post original aninhado
+        const originalContentHtml = `
+            <div class="reposted-post-container" data-original-id="${post.originalPostId}">
+                <div class="post-header repost-header">
+                    <img src="${post.originalPostAvatar || defaultAvatar}" alt="${post.originalPostAuthor}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=A'">
+                    <div>
+                        <h4>${post.originalPostAuthor || 'Usuário'}</h4>
+                        <span>Post Original</span>
+                    </div>
+                </div>
+                <div class="post-content repost-content">
+                    <p>${post.originalPostContent || ''}</p>
+                    ${renderMedia({ 
+                        type: post.originalPostType,
+                        mediaUrl: post.originalPostMediaUrl,
+                        preview: post.originalPostPreview,
+                        content: post.originalPostContent 
+                    })}
+                </div>
             </div>
-        </div>
-        <div class="post-content">
-            ${post.content || ''}
-            ${mediaContent}
-        </div>
-        <div class="post-actions">
-            <button class="post-action">
-                <i class="fas fa-thumbs-up"></i>
-                Curtir (${likes})
-            </button>
-            <button class="post-action">
-                <i class="fas fa-comment"></i>
-                Comentar (${comments})
-            </button>
-            <button class="post-action">
-                <i class="fas fa-share"></i>
-                Compartilhar (${shares})
-            </button>
-        </div>
-    `;
-    return postDiv;
+        `;
+        
+        // Estrutura do Repost
+        postDiv.innerHTML = `
+            <div class="post-header">
+                <img src="${post.avatar || defaultAvatar}" alt="${post.author}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=AV'">
+                <div>
+                    <h4>${post.author || 'Usuário IfSpace'}</h4>
+                    <span class="repost-indicator">Compartilhou o post de ${post.originalPostAuthor || 'Usuário'}</span>
+                    <span>${timeDisplay}</span>
+                </div>
+            </div>
+            <div class="post-content">
+                ${post.content || ''}
+            </div>
+            ${originalContentHtml} 
+            <div class="post-actions">
+                <button class="post-action like-btn" data-post-id="${post.id}">
+                    <i class="fas fa-thumbs-up"></i>
+                    Curtir (${likes})
+                </button>
+                <button class="post-action comment-btn" data-post-id="${post.id}">
+                    <i class="fas fa-comment"></i>
+                    Comentar (${comments})
+                </button>
+                <button class="post-action share-btn" data-post-id="${post.id}">
+                    <i class="fas fa-share"></i>
+                    Compartilhar (${shares})
+                </button>
+            </div>
+            <div class="comments-section" id="comments-${post.id}" style="display: none;">
+                <textarea class="comment-input" placeholder="Digite um comentário..." data-post-id="${post.id}"></textarea>
+                <div class="comments-list"></div>
+            </div>
+        `;
+        return postDiv;
+
+    } else {
+        // Lógica para posts normais (mantida)
+        let mediaContent = renderMedia(post);
+
+        // A CORREÇÃO DE LÓGICA foi feita no event listener, garantindo que post.content seja "" ou o texto digitado.
+        // A tag <p> só aparece se post.content tiver valor.
+        let textContentHtml = '';
+        if (post.content && post.content.trim() !== '') {
+             textContentHtml = `<p>${post.content}</p>`;
+        }
+
+        postDiv.innerHTML = `
+            <div class="post-header">
+                <img src="${post.avatar || defaultAvatar}" alt="${post.author}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=AV'">
+                <div>
+                    <h4>${post.author || 'Usuário IfSpace'}</h4>
+                    <span>${timeDisplay}</span>
+                </div>
+            </div>
+            <div class="post-content">
+                ${textContentHtml}
+                ${mediaContent}
+            </div>
+            <div class="post-actions">
+                <button class="post-action like-btn" data-post-id="${post.id}">
+                    <i class="fas fa-thumbs-up"></i>
+                    Curtir (${likes})
+                </button>
+                <button class="post-action comment-btn" data-post-id="${post.id}">
+                    <i class="fas fa-comment"></i>
+                    Comentar (${comments})
+                </button>
+                <button class="post-action share-btn" data-post-id="${post.id}">
+                    <i class="fas fa-share"></i>
+                    Compartilhar (${shares})
+                </button>
+            </div>
+            <div class="comments-section" id="comments-${post.id}" style="display: none;">
+                <textarea class="comment-input" placeholder="Digite um comentário..." data-post-id="${post.id}"></textarea>
+                <div class="comments-list"></div>
+            </div>
+        `;
+        return postDiv;
+    }
 }
 
 async function createNewPost(content, type = 'text', mediaUrl = null, preview = null) {
@@ -145,20 +229,20 @@ async function createNewPost(content, type = 'text', mediaUrl = null, preview = 
     const newPostData = {
         author: userNameSpan ? userNameSpan.textContent : 'Usuário IfSpace',
         avatar: profileImage ? profileImage.src : defaultAvatar,
-        content,
+        content, // AQUI RECEBEMOS O "" ou o texto digitado.
         type,
         mediaUrl,
         preview,
         likes: 0,
-        comments: 0,
-        shares: 0,
+        comments: [],
         authorUid: currentUserId,
-        timestamp: new Date()
+        timestamp: serverTimestamp()
     };
 
     try {
-        await savePostToFirebase(newPostData);
-        console.log("Post salvo no Firebase.");
+        const docRef = await savePostToFirebase(newPostData);
+        console.log("Post salvo no Firebase com ID:", docRef.id);
+        newPostData.id = docRef.id;
         if (postsFeed) {
             const postElement = createPostElement(newPostData);
             postsFeed.insertBefore(postElement, postsFeed.firstChild);
@@ -176,37 +260,248 @@ async function createNewPost(content, type = 'text', mediaUrl = null, preview = 
     }
 }
 
-function loadContacts() {
-    if (contactsList) {
-        contactsList.innerHTML = exampleContacts.map(contact => `
-            <li class="contact-item">
-                <img src="${contact.img}" alt="${contact.name}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=C'">
-                <span>${contact.name}</span>
-            </li>
-        `).join('');
+// Função addComment (Mantida)
+async function addComment(postId, commentText) {
+    if (!currentUserId || !commentText.trim()) return;
+
+    const postRef = doc(db, 'posts', postId);
+    const userDocRef = doc(db, 'users', currentUserId);
+    const userDocSnap = await getDoc(userDocRef);
+    const userName = userDocSnap.exists() ? userDocSnap.data().fullName || userDocSnap.data().email || 'Anônimo' : 'Anônimo';
+
+    const commentData = {
+        text: commentText,
+        authorUid: currentUserId,
+        authorName: userName,
+        // CORREÇÃO: Substituir serverTimestamp() por new Date()
+        timestamp: new Date() 
+    };
+
+    await updateDoc(postRef, {
+        comments: arrayUnion(commentData)
+    });
+}
+
+async function toggleLike(postId) {
+    if (!currentUserId) return;
+
+    const postRef = doc(db, 'posts', postId);
+    const postDoc = await getDoc(postRef);
+    if (!postDoc.exists()) return;
+
+    const currentLikes = postDoc.data().likes || 0;
+    await updateDoc(postRef, {
+        likes: currentLikes + 1
+    });
+
+    const postElement = document.querySelector(`[data-post-id="${postId}"] .like-btn`);
+    if (postElement) {
+        postElement.textContent = `Curtir (${currentLikes + 1})`;
+    }
+}
+
+// Função handleSharePost (Mantida)
+async function handleSharePost(postId) {
+    if (!currentUserId) return alert('Você precisa estar logado para compartilhar.');
+
+    // 1. Pede o texto e verifica cancelamento
+    const shareText = prompt("Adicione um texto para o seu compartilhamento (opcional):");
+    if (shareText === null) return; 
+
+    try {
+        const postRef = doc(db, 'posts', postId);
+        const postDoc = await getDoc(postRef);
+
+        if (!postDoc.exists()) {
+            return alert("Post original não encontrado.");
+        }
+
+        const originalPostData = postDoc.data();
+        const defaultAvatar = 'https://placehold.co/40x40?text=AV';
+
+        // 2. Incrementa o contador de compartilhamentos no post ORIGINAL
+        const currentShares = originalPostData.shares || 0;
+        await updateDoc(postRef, {
+            shares: currentShares + 1 
+        });
+        
+        // 3. Prepara os dados do NOVO REPOST
+        const repostOfId = originalPostData.repostOf || postId; 
+        
+        const newRepostData = {
+            author: userNameSpan ? userNameSpan.textContent : 'Usuário IfSpace',
+            avatar: profileImage ? profileImage.src : defaultAvatar,
+            content: shareText || '', // Texto adicionado pelo usuário
+            type: 'repost', 
+            
+            // Metadados do Repost
+            repostOf: repostOfId,
+            originalPostId: postId,
+            originalPostAuthor: originalPostData.author,
+            originalPostAvatar: originalPostData.avatar, 
+            originalPostContent: originalPostData.content, 
+            originalPostType: originalPostData.type, 
+            originalPostMediaUrl: originalPostData.mediaUrl, 
+            originalPostPreview: originalPostData.preview, 
+
+            likes: 0,
+            comments: [],
+            shares: 0, 
+            authorUid: currentUserId,
+            timestamp: serverTimestamp()
+        };
+
+        // 4. Salva o novo post de Repost
+        const docRef = await savePostToFirebase(newRepostData);
+        alert("Post compartilhado com sucesso!");
+
+    } catch (error) {
+        console.error("Erro ao compartilhar post:", error);
+        alert("Erro ao compartilhar o post: " + error.message);
+    }
+}
+
+// NOVO: Adiciona o listener para cliques nos contatos reais
+function setupContactClickListener() {
+    if (!contactsList) return;
+
+    contactsList.querySelectorAll('.contact-item-real').forEach(item => {
+        item.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            
+            // REMOVEMOS O ALERT e ADICIONAMOS A LÓGICA REAL:
+
+            // Redireciona para a página de chat, passando o ID do usuário como parâmetro
+            window.location.href = `chat.html?friendId=${userId}`; 
+            
+            // O código anterior FUTURO: window.location.href = `chat.html?user=${userId}`;
+            // está agora ativo e corrigido para usar a variável 'userId'
+        });
+    });
+}
+
+// CORREÇÃO 2: loadContacts agora é assíncrona e busca usuários no Firestore
+async function loadContacts() {
+    // Retorna imediatamente se as dependências não estiverem prontas.
+    if (!contactsList || !db || !currentUserId) {
+        console.warn("loadContacts: Firestore (db) ou ID do usuário não estão prontos.");
+        contactsList.innerHTML = '<li class="contact-item">Aguardando login para carregar contatos...</li>';
+        return; 
+    }
+
+    try {
+        const usersCol = collection(db, 'users');
+        const usersSnapshot = await getDocs(usersCol); 
+        
+        let usersHtml = '';
+        let foundUsers = 0;
+
+        usersSnapshot.forEach(doc => {
+            const user = doc.data();
+            const userId = doc.id;
+            
+            // Ignorar o próprio usuário logado
+            if (userId === currentUserId) return; 
+
+            const userName = user.fullName || user.email || 'Usuário Desconhecido';
+            const userAvatar = user.profilePictureUrl || `https://placehold.co/40x40?text=${userName[0].toUpperCase()}`;
+            
+            usersHtml += `
+                <li class="contact-item contact-item-real" data-user-id="${userId}" data-user-name="${userName}">
+                    <img src="${userAvatar}" alt="${userName}" class="profile-img" onerror="this.src='https://placehold.co/40x40?text=C'">
+                    <span>${userName}</span>
+                </li>
+            `;
+            foundUsers++;
+        });
+        
+        if (foundUsers > 0) {
+            contactsList.innerHTML = usersHtml;
+        } else {
+            contactsList.innerHTML = '<li class="contact-item">Nenhum outro usuário cadastrado.</li>';
+        }
+
+        setupContactClickListener(); // Chama o listener após carregar os contatos
+        
+    } catch (error) {
+        // Loga o erro, mas não trava o restante do script (como loadPosts)
+        console.error("Erro ao carregar contatos do Firestore. Verifique suas regras de segurança e a coleção 'users'.", error);
+        contactsList.innerHTML = '<li class="contact-item" style="color: red;">Erro ao carregar contatos.</li>';
     }
 }
 
 function loadPosts() {
     if (!postsFeed) return;
-
+// ... (restante da função loadPosts mantido)
+// ... (omito o restante da função loadPosts para brevidade, mas você deve mantê-la)
     onPostsChange((posts) => {
         console.log("Posts recebidos do Firestore:", posts.map(p => ({
             content: p.content,
             timestamp: p.timestamp?.toDate ? p.timestamp.toDate().toISOString() : 'Sem timestamp'
         })));
-        // Ordenar localmente por timestamp em ordem crescente, se necessário
-        posts.sort((a, b) => {
+        postsFeed.innerHTML = '';
+        
+        // Se a ordenação não estiver no firebase-config.js, este sort garante a decrescente:
+        const sortedPosts = posts.sort((a, b) => {
             const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
             const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
-            return timeB - timeA; // Ordem decrescente
+            return timeB - timeA;
         });
-        postsFeed.innerHTML = '';
-        posts.forEach((post) => {
+
+        sortedPosts.forEach((post) => {
             const postElement = createPostElement(post);
             postsFeed.appendChild(postElement);
+
+            const commentsSection = postElement.querySelector(`#comments-${post.id}`);
+            if (commentsSection) {
+                const commentsList = commentsSection.querySelector('.comments-list');
+                const commentInput = commentsSection.querySelector('.comment-input');
+                onSnapshot(doc(db, 'posts', post.id), (docSnap) => {
+                    const postData = docSnap.data();
+                    commentsList.innerHTML = (postData.comments || []).map(comment => `
+                        <div class="comment">
+                            <strong>${comment.authorName}</strong>: ${comment.text}
+                            <span>${comment.timestamp?.toDate ? comment.timestamp.toDate().toLocaleString('pt-BR') : 'Agora'}</span>
+                        </div>
+                    `).join('');
+
+                    if (commentInput) {
+                        commentInput.addEventListener('keypress', async (e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                const commentText = commentInput.value.trim();
+                                if (commentText) {
+                                    await addComment(post.id, commentText);
+                                    commentInput.value = '';
+                                }
+                            }
+                        });
+                    }
+                });
+            }
         });
     });
+}
+
+function loadUrgentNotices() {
+    const urgentNotices = document.getElementById('urgentNotices');
+    if (urgentNotices) {
+        urgentNotices.innerHTML = `
+            <h2>Avisos Urgentes do Campus</h2>
+            <p>Exemplo: Reunião de emergência hoje às 14h no auditório.</p>
+        `;
+    }
+}
+
+function loadAdvertisements() {
+    const advertisementSection = document.getElementById('advertisementSection');
+    if (advertisementSection) {
+        advertisementSection.innerHTML = `
+            <h2>Publicidade</h2>
+            <p>Exemplo: Anúncio de evento local - clique para mais detalhes.</p>
+        `;
+    }
 }
 
 function loadStories() {
@@ -238,9 +533,13 @@ function loadStories() {
 }
 
 function init() {
-    loadContacts();
+    // CORREÇÃO: loadContacts é assíncrona, mas não precisa de 'await' aqui.
+    // Ela deve ser chamada para iniciar o carregamento.
+    loadContacts(); 
     loadPosts();
     loadStories();
+    loadUrgentNotices();
+    loadAdvertisements();
     if (liveBtn) liveBtn.addEventListener('click', () => {
         alert("Funcionalidade de Live ainda não implementada!");
     });
@@ -250,310 +549,10 @@ function init() {
 const mediaModal = document.createElement('div');
 mediaModal.className = 'media-modal';
 
-function openMediaSelector() {
-    mediaModal.innerHTML = `
-        <div class="media-modal-content">
-            <div class="media-modal-header">
-                <h3>Adicionar Mídia ao Post</h3>
-                <span class="close-media-modal">&times;</span>
-            </div>
-            <div class="media-options">
-                <div class="media-option" data-type="image">
-                    <i class="fas fa-image"></i>
-                    <h4>Imagem</h4>
-                    <p>Carregar do seu computador ou link.</p>
-                </div>
-                <div class="media-option" data-type="video">
-                    <i class="fas fa-video"></i>
-                    <h4>Vídeo</h4>
-                    <p>Carregar arquivo ou URL.</p>
-                </div>
-                <div class="media-option" data-type="link">
-                    <i class="fas fa-link"></i>
-                    <h4>Link</h4>
-                    <p>Adicionar um link com prévia.</p>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(mediaModal);
-    setupMediaModalEvents(mediaModal);
-}
-
-function setupMediaModalEvents(modal) {
-    const closeBtn = modal.querySelector('.close-media-modal');
-    const mediaOptions = modal.querySelectorAll('.media-option');
-
-    closeBtn.addEventListener('click', () => modal.remove());
-
-    mediaOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const type = this.dataset.type;
-            modal.remove();
-            switch(type) {
-                case 'image':
-                    openImageSelector();
-                    break;
-                case 'video':
-                    openVideoSelector();
-                    break;
-                case 'link':
-                    openLinkSelector();
-                    break;
-            }
-        });
-    });
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-function openImageSelector() {
-    const imageModal = document.createElement('div');
-    imageModal.className = 'image-modal';
-    imageModal.innerHTML = `
-        <div class="image-modal-content">
-            <div class="image-modal-header">
-                <h3>Adicionar Imagem</h3>
-                <span class="close-image-modal">&times;</span>
-            </div>
-            <div class="image-options">
-                <label for="imageFileInput" class="image-option" data-type="file">
-                    <i class="fas fa-upload"></i>
-                    <h4>Carregar Arquivo</h4>
-                    <input type="file" id="imageFileInput" accept="image/*" style="display: none;">
-                </label>
-                <div class="image-option" id="imageLinkOption">
-                    <i class="fas fa-link"></i>
-                    <h4>URL da Imagem</h4>
-                </div>
-                <div class="image-option" id="googleImagesOption">
-                    <i class="fab fa-google"></i>
-                    <h4>Pesquisar Google</h4>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(imageModal);
-    setupImageModalEvents(imageModal);
-}
-
-function setupImageModalEvents(modal) {
-    const closeBtn = modal.querySelector('.close-image-modal');
-    const fileInput = modal.querySelector('#imageFileInput');
-    const imageLink = modal.querySelector('#imageLinkOption');
-    const googleImages = modal.querySelector('#googleImagesOption');
-
-    closeBtn.addEventListener('click', () => modal.remove());
-
-    fileInput.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const uploadResult = await handleMediaUpload(file, 'image');
-            if (uploadResult.success) {
-                createNewPost('Nova imagem postada.', 'image', uploadResult.url);
-            } else {
-                const errorMessage = document.getElementById('errorMessage');
-                if (errorMessage) {
-                    errorMessage.textContent = 'Erro no upload: ' + uploadResult.error;
-                    errorMessage.style.display = 'block';
-                    setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
-                } else {
-                    alert('Erro no upload: ' + uploadResult.error);
-                }
-            }
-            modal.remove();
-        }
-    });
-
-    googleImages.addEventListener('click', function() {
-        alert('Funcionalidade do Google Imagens será implementada em breve!');
-    });
-
-    imageLink.addEventListener('click', function() {
-        const url = prompt('Digite a URL da imagem:');
-        if (url && url.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-            createNewPost('Nova imagem postada via link.', 'image', url);
-            modal.remove();
-        } else {
-            const errorMessage = document.getElementById('errorMessage');
-            if (errorMessage) {
-                errorMessage.textContent = 'Por favor, insira uma URL válida de imagem (jpg, png, gif, webp)';
-                errorMessage.style.display = 'block';
-                setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
-            } else {
-                alert('Por favor, insira uma URL válida de imagem (jpg, png, gif, webp)');
-            }
-        }
-    });
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-function openVideoSelector() {
-    const videoModal = document.createElement('div');
-    videoModal.className = 'video-modal';
-    videoModal.innerHTML = `
-        <div class="video-modal-content">
-            <div class="video-modal-header">
-                <h3>Adicionar Vídeo</h3>
-                <span class="close-video-modal">&times;</span>
-            </div>
-            <div class="video-options">
-                <label for="videoFileInput" class="video-option" data-type="file">
-                    <i class="fas fa-upload"></i>
-                    <h4>Carregar Arquivo</h4>
-                    <input type="file" id="videoFileInput" accept="video/*" style="display: none;">
-                </label>
-                <div class="video-option" id="videoLinkOption">
-                    <i class="fas fa-link"></i>
-                    <h4>URL do Vídeo</h4>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(videoModal);
-    setupVideoModalEvents(videoModal);
-}
-
-function setupVideoModalEvents(modal) {
-    const closeBtn = modal.querySelector('.close-video-modal');
-    const fileInput = modal.querySelector('#videoFileInput');
-    const videoLink = document.getElementById('videoLinkOption');
-
-    closeBtn.addEventListener('click', () => modal.remove());
-
-    fileInput.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const uploadResult = await handleMediaUpload(file, 'video');
-            if (uploadResult.success) {
-                createNewPost('Novo vídeo postado.', 'video', uploadResult.url);
-            } else {
-                const errorMessage = document.getElementById('errorMessage');
-                if (errorMessage) {
-                    errorMessage.textContent = 'Erro no upload: ' + uploadResult.error;
-                    errorMessage.style.display = 'block';
-                    setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
-                } else {
-                    alert('Erro no upload: ' + uploadResult.error);
-                }
-            }
-            modal.remove();
-        }
-    });
-
-    videoLink.addEventListener('click', function() {
-        const url = prompt('Digite a URL do vídeo:');
-        if (url && url.match(/\.(mp4|webm|ogg|avi|mov)$/i)) {
-            createNewPost('Novo vídeo postado via link.', 'video', url);
-            modal.remove();
-        } else {
-            const errorMessage = document.getElementById('errorMessage');
-            if (errorMessage) {
-                errorMessage.textContent = 'Por favor, insira uma URL válida de vídeo (mp4, webm, ogg, avi, mov)';
-                errorMessage.style.display = 'block';
-                setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
-            } else {
-                alert('Por favor, insira uma URL válida de vídeo (mp4, webm, ogg, avi, mov)');
-            }
-        }
-    });
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-function openLinkSelector() {
-    const linkModal = document.createElement('div');
-    linkModal.className = 'link-modal';
-    linkModal.innerHTML = `
-        <div class="link-modal-content">
-            <div class="link-modal-header">
-                <h3>Adicionar Link</h3>
-                <span class="close-link-modal">&times;</span>
-            </div>
-            <div style="padding: 20px;">
-                <input type="text" id="linkInput" class="link-input" placeholder="Digite a URL do link (ex: https://www.google.com)">
-                <button id="previewBtn" class="post-btn" style="width: 100%; margin-top: 10px;">Pré-visualizar</button>
-                <div id="previewContainer" class="preview-container"></div>
-                <button id="postLinkBtn" class="post-btn" style="width: 100%; margin-top: 15px; background-color: #00a400;">Publicar Link</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(linkModal);
-    setupLinkModalEvents(linkModal);
-}
-
-function setupLinkModalEvents(modal) {
-    const closeBtn = modal.querySelector('.close-link-modal');
-    const linkInput = modal.querySelector('#linkInput');
-    const previewBtn = modal.querySelector('#previewBtn');
-    const postLinkBtn = modal.querySelector('#postLinkBtn');
-    const previewContainer = modal.querySelector('#previewContainer');
-
-    closeBtn.addEventListener('click', () => modal.remove());
-
-    previewBtn.addEventListener('click', async function() {
-        const url = linkInput.value;
-        if (url) {
-            const preview = await createLinkPreview(url);
-            previewContainer.innerHTML = `
-                <p>Pré-visualização:</p>
-                <div style="border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
-                    <h4>${preview.title}</h4>
-                    <p>${preview.description}</p>
-                    <img src="${preview.image}" alt="Link Preview" onerror="this.src='https://placehold.co/150x100?text=Preview+Error'">
-                </div>
-            `;
-        }
-    });
-
-    postLinkBtn.addEventListener('click', async function() {
-        const url = linkInput.value;
-        if (url) {
-            const preview = await createLinkPreview(url);
-            createNewPost(`Confira este link: ${url}`, 'link', null, preview);
-            modal.remove();
-        } else {
-            const errorMessage = document.getElementById('errorMessage');
-            if (errorMessage) {
-                errorMessage.textContent = 'Por favor, insira uma URL válida.';
-                errorMessage.style.display = 'block';
-                setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
-            } else {
-                alert('Por favor, insira uma URL válida.');
-            }
-        }
-    });
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-function openFeelingSelector() {
-    if (feelingModal) {
-        feelingModal.style.display = 'block';
-    }
-}
-
 function setupEventListeners() {
     if (photoBtn) {
         photoBtn.addEventListener('click', () => {
-            imageUploadInput.click(); // Abre o seletor de arquivos
+            imageUploadInput.click();
         });
     }
 
@@ -565,13 +564,26 @@ function setupEventListeners() {
         if (feelingModal) feelingModal.style.display = 'none';
     });
 
-    if (imageUploadInput) {
+if (imageUploadInput) {
         imageUploadInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
+            
+            // 1. CAPTURA O TEXTO ATUAL DO INPUT PRINCIPAL (postText)
+            // Se o postText existir, pega seu valor. Se não existir, usa string vazia.
+            const postTextContent = postText ? postText.value.trim() : ''; // AQUI CAPTURAMOS O TEXTO ANTES DO UPLOAD
+
             if (file && currentUserId) {
                 const uploadResult = await handleMediaUpload(file, 'image');
+                
                 if (uploadResult.success) {
-                    createNewPost('Nova imagem postada.', 'image', uploadResult.url);
+                    // 2. Passa o conteúdo de texto capturado
+                    createNewPost(postTextContent, 'image', uploadResult.url);
+                    
+                    // 3. AGORA, SÓ LIMPA O CAMPO DE TEXTO APÓS A POSTAGEM BEM-SUCEDIDA
+                    if (postText) {
+                        postText.value = '';
+                    }
+                    
                 } else {
                     const errorMessage = document.getElementById('errorMessage');
                     if (errorMessage) {
@@ -582,11 +594,56 @@ function setupEventListeners() {
                         alert('Erro no upload: ' + uploadResult.error);
                     }
                 }
-                imageUploadInput.value = ''; // Limpa o input
+                
+                // Limpa o input de arquivo (sempre)
+                imageUploadInput.value = '';
             }
         });
     }
 
+    // CORREÇÃO: Bloco de escuta para as interações dos posts, incluindo o botão Compartilhar.
+    if (postsFeed) {
+        postsFeed.addEventListener('click', async (e) => {
+            const likeBtn = e.target.closest('.like-btn');
+            const commentBtn = e.target.closest('.comment-btn');
+            const submitCommentBtn = e.target.closest('.submit-comment');
+            const shareBtn = e.target.closest('.share-btn'); 
+
+            if (likeBtn) {
+                const postId = likeBtn.dataset.postId;
+                await toggleLike(postId);
+            }
+
+            if (commentBtn) {
+                const postId = commentBtn.dataset.postId;
+                const commentsSection = document.getElementById(`comments-${postId}`);
+                if (commentsSection) {
+                    commentsSection.style.display = commentsSection.style.display === 'none' ? 'block' : 'none';
+                }
+            }
+
+            // LÓGICA DE COMPARTILHAMENTO ADICIONADA:
+            if (shareBtn) {
+                const postId = shareBtn.dataset.postId;
+                if (postId) {
+                    await handleSharePost(postId);
+                }
+            }
+
+            if (submitCommentBtn) {
+                const postId = submitCommentBtn.dataset.postId;
+                const commentInput = document.querySelector(`#comments-${postId} .comment-input`);
+                if (commentInput) {
+                    const commentText = commentInput.value.trim();
+                    if (commentText) {
+                        await addComment(postId, commentText);
+                        commentInput.value = '';
+                    }
+                }
+            }
+        });
+    }
+    
     window.addEventListener('click', function(e) {
         if (e.target === feelingModal) {
             if (feelingModal) feelingModal.style.display = 'none';
@@ -670,6 +727,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (profileImage) profileImage.src = defaultAvatar;
             }
 
+            // CHAMA init() APENAS DEPOIS que currentUserId e db estão definidos
             init();
 
             if (logoutButton) {
