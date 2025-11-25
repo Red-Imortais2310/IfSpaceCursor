@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
     mainContentArea = document.querySelector('.main-content');
     imageUploadInput = document.getElementById('imageUploadInput');
 
-    onAuthStateChange(async (user) => {
+       onAuthStateChange(async (user) => {
         if (user) {
             currentUserId = user.uid;
             console.log("Firebase: Usuário logado:", currentUserId);
@@ -727,28 +727,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (profileImage) profileImage.src = defaultAvatar;
             }
 
-            // CHAMA init() APENAS DEPOIS que currentUserId e db estão definidos
-            init();
+            // === FUNÇÃO QUE ATUALIZA O FEED E CONTATOS ===
+            const atualizarFeed = () => {
+                console.log("Atualizando feed automaticamente...");
+                loadPosts();        // ← sua função que já recarrega os posts
+                loadContacts?.();   // ← atualiza a lista de contatos (se existir)
+            };
 
+            // Primeira carga ao entrar na página
+            init();
+            atualizarFeed();
+
+            // Atualiza automaticamente a cada 2 minutos (120000 ms)
+            const intervalo = setInterval(atualizarFeed, 120000);
+
+            // Atualiza quando o usuário volta para a aba (muito útil!)
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden) {
+                    console.log("Usuário voltou para a aba → atualizando feed");
+                    atualizarFeed();
+                }
+            });
+
+            // === BOTÃO DE LOGOUT ===
             if (logoutButton) {
                 logoutButton.addEventListener('click', async () => {
+                    clearInterval(intervalo); // para o temporizador ao sair
                     try {
                         await auth.signOut();
                         console.log("Firebase: Usuário deslogado com sucesso.");
                         window.location.href = 'index.html';
                     } catch (error) {
                         console.error("Firebase: Erro ao fazer logout:", error);
-                        const errorMessage = document.getElementById('errorMessage');
-                        if (errorMessage) {
-                            errorMessage.textContent = 'Erro ao fazer logout: ' + error.message;
-                            errorMessage.style.display = 'block';
-                            setTimeout(() => { errorMessage.style.display = 'none'; }, 5000);
-                        } else {
-                            alert('Erro ao fazer logout: ' + error.message);
-                        }
+                        alert('Erro ao fazer logout: ' + error.message);
                     }
                 });
             }
+
         } else {
             console.log("Firebase: Nenhum usuário logado. Redirecionando para index.html");
             window.location.href = 'index.html';
