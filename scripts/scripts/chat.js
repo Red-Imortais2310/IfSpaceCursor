@@ -8,11 +8,33 @@ import {
     updateMessageReaction,
     loadUsersForChat 
 } from '../firebase-config.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { auth } from '../firebase-config.js';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Variáveis de estado
     let currentFriend = null;
     let currentUserId = null; 
+    // Cache para não ficar buscando o nome toda hora
+    const usersCache = {};
+
+    async function getUserDisplayName(uid) {
+        if (!uid) return "Usuário";
+        if (usersCache[uid]) return usersCache[uid];
+
+        try {
+            const userDoc = await getDoc(doc(db, "users", uid));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                const name = data.fullName || data.email?.split('@')[0] || "Usuário";
+                usersCache[uid] = name;
+                return name;
+            }
+        } catch (e) {
+            console.error("Erro ao buscar nome:", e);
+        }
+        return "Usuário";
+    }
     
     // Elementos do DOM
     const friendsList = document.getElementById('friendsList');
@@ -120,23 +142,31 @@ document.addEventListener('DOMContentLoaded', function() {
         messageDiv.className = `message ${senderType}`;
         messageDiv.dataset.messageId = message.id; 
         
+                let avatarHtml = '';
         let contentHtml = '';
 
+        // ===== AVATAR + NOME DO REMETENTE (só aparece nas mensagens recebidas) =====
+        if (senderType === 'received' && currentFriend) {
+            avatarHtml = `
+                <div class="message-avatar-container">
+                    <img src="${currentFriend.avatar}" alt="${currentFriend.name}" class="message-avatar">
+                    <div class="sender-name-in-message">${currentFriend.name}</div>
+                </div>
+            `;
+        }
+
+        // ===== CONTEÚDO DA MENSAGEM =====
         if (message.type === 'text') {
             contentHtml = `<div class="message-content">${message.text}</div>`;
         } else if (message.type === 'image' && message.mediaUrl) {
-            contentHtml = `<div class="message-content"><img src="${message.mediaUrl}" alt="Imagem Enviada" loading="lazy"></div>`;
+            contentHtml = `<div class="message-content"><img src="${message.mediaUrl}" alt="Imagem" loading="lazy"></div>`;
         } else if (message.type === 'audio' && message.mediaUrl) {
             contentHtml = `<div class="message-content"><audio controls src="${message.mediaUrl}"></audio></div>`;
         } else {
-            contentHtml = `<div class="message-content">${message.text || `[${message.type.toUpperCase()}]`}</div>`;
+            contentHtml = `<div class="message-content">${message.text || `[${message.type?.toUpperCase() || 'MÍDIA'}]`}</div>`;
         }
 
-        let avatarHtml = '';
-        if (senderType === 'received' && currentFriend) {
-            avatarHtml = `<img src="${currentFriend.avatar}" alt="${currentFriend.name}" class="message-avatar">`;
-        }
-        
+        // ===== REAÇÃO (curtidas) =====
         let reactionHtml = '';
         if (message.reaction) {
             reactionHtml = `<span class="reaction-emoji" data-message-id="${message.id}">${message.reaction}</span>`;

@@ -83,11 +83,11 @@ export async function loadUsersForChat(currentUserId) {
         querySnapshot.forEach((doc) => {
             const userData = doc.data();
             
-            if (doc.id !== currentUserId && userData.displayName) { 
+            if (doc.id !== currentUserId && userData.fullName) {  // Verifica fullName agora
                 users.push({
                     id: doc.id, 
-                    name: userData.displayName || 'Usuário IfSpace', 
-                    avatar: userData.photoURL || 'https://via.placeholder.com/45', 
+                    name: userData.fullName || userData.email?.split('@')[0] || 'Usuário IfSpace',  // ← USA fullName!
+                    avatar: userData.profilePictureUrl || 'https://via.placeholder.com/45',  // ← USA profilePictureUrl!
                     status: 'Online' 
                 });
             }
