@@ -72,11 +72,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
                 }
 
-                await setDoc(doc(db, 'users', user.uid), {
+                                // ==== PEGAR DADOS DO FORMULÁRIO DE CADASTRO ====
+                const firstName = document.getElementById('firstName').value.trim();
+                const lastName  = document.getElementById('lastName').value.trim();
+                const fullName  = `${firstName} ${lastName}`.trim();
+
+                const birthday = document.getElementById('birthday').value;
+                const gender   = document.getElementById('gender').value;
+
+                // Validação básica do nome
+                if (!firstName || !lastName) {
+                    document.getElementById('errorMessage').textContent = 'Preencha nome e sobrenome.';
+                    document.getElementById('errorMessage').style.display = 'block';
+                    hideLoadingState();
+                    return;
+                }
+
+                // ==== SALVAR TODOS OS DADOS NO FIRESTORE (incluindo o NOME!) ====
+                await setDoc(doc(db, "users", user.uid), {
+                    fullName: fullName,                    // ← ESSA LINHA É A CHAVE!
+                    firstName: firstName,
+                    lastName: lastName,
                     email: email,
-                    profilePictureUrl: profilePictureUrl,
+                    profilePictureUrl: profilePictureUrl || 'https://placehold.co/100x100?text=AV',
+                    birthday: birthday,
+                    gender: gender,
                     createdAt: serverTimestamp()
                 });
+
+                console.log("Perfil completo salvo no Firestore com nome:", fullName);
 
                 console.log("Dados do usuário salvos no Firestore.");
                 window.location.href = 'feed.html';

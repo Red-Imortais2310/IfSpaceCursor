@@ -119,11 +119,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
                 }
 
-                await setDoc(doc(db, 'users', user.uid), {
-                    email: email,
-                    profilePictureUrl: profilePictureUrl,
-                    createdAt: serverTimestamp()
-                });
+                // Pegar o nome completo do formulário de cadastro
+                  const fullName = document.getElementById('registerFullName').value.trim();
+
+                if (!fullName) {
+                 uploadStatus.textContent = 'Por favor, digite seu nome completo.';
+                 uploadStatus.style.display = 'block';
+                 uploadStatus.style.color = 'red';
+                return;
+                }
+
+                 await setDoc(doc(db, 'users', user.uid), {
+                 fullName: fullName,                    // ← AQUI ESTÁ O NOME!
+                 email: email,
+                 profilePictureUrl: profilePictureUrl,
+                createdAt: serverTimestamp()
+            });
 
                 console.log("Dados do usuário salvos no Firestore.");
                 window.location.href = 'feed.html';
