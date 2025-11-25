@@ -399,4 +399,37 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.friend-item.active-chat {
+    background: rgba(0, 180, 255, 0.12);
+    border-left: 4px solid #00b4ff;
+    font-weight: 600;
+}
+.friend-item.active-chat .friend-name { color: #00b4ff; }
+.friend-item.active-chat .friend-status::before {
+    content: "";
+    width: 10px; height: 10px;
+    background: #00ff9d;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 8px #00ff9d;
+}
+
+.message-avatar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 50px;
+}
+.sender-name-in-message {
+    font-size: 0.78em;
+    font-weight: 600;
+    color: #65676b;
+    text-align: center;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 }
