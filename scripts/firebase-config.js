@@ -100,23 +100,34 @@ export async function loadUsersForChat(currentUserId) {
 }
 
 // Função: Salvar Mensagem de Chat (saveMessageToFirebase)
-export async function saveMessageToFirebase(message) {
-    // Coleção: chats/{chatId}/messages
-    const chatCollectionRef = collection(db, "chats", message.chatId, "messages");
-    
+export async function saveMessageToFirebase({ chatId, senderId, text, type = 'text', mediaUrl = null }) {
+    if (!chatId || !senderId) return;
+
+    const messagesRef = collection(db, "chats", chatId, "messages");
+    const chatDocRef = doc(db, "chats", chatId);
+
     try {
-        await addDoc(chatCollectionRef, {
-            senderId: message.senderId,
-            text: message.text,
-            type: message.type,
-            mediaUrl: message.mediaUrl || null,
-            timestamp: serverTimestamp(), 
-            reaction: message.reaction || null
+        // 1) Salva a mensagem
+        await addDoc(messagesRef, {
+            senderId,
+            text,
+            type,
+            mediaUrl,
+            timestamp: serverTimestamp(),
+            read: false  // ← IMPORTANTE: começa como não lida
         });
-        return { success: true };
+
+        // 2) Atualiza o chat principal com última mensagem + quem não leu
+        await setDoc(chatDocRef, {
+            lastMessage: text || "[Imagem]" || "[Áudio]",
+            lastTimestamp: serverTimestamp(),
+            participants: [chatId.split("_")[0], chatId.split("_")[1]],
+            unreadFor: senderId  // ← quem AINDA NÃO leu (o outro cara)
+        }, { merge: true });
+
+        console.log("Mensagem salva e marcada como não lida");
     } catch (e) {
-        console.error("Erro ao salvar mensagem: ", e);
-        return { success: false, error: e.message };
+        console.error("Erro ao salvar mensagem:", e);
     }
 }
 

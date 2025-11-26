@@ -72,38 +72,57 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ====== CARREGAR AMIGOS ======
-    async function loadFriends(userId) {
-        friendsList.innerHTML = '<li style="padding: 15px; text-align: center; color: #666;">Carregando...</li>';
-        const realUsers = await loadUsersForChat(userId);
+async function loadFriends(userId) {
+    friendsList.innerHTML = '<li style="padding:15px;text-align:center;">Carregando...</li>';
+    const realUsers = await loadUsersForChat(userId);
 
-        if (realUsers.length === 0) {
-            friendsList.innerHTML = '<li style="padding: 15px; text-align: center;">Nenhum usuário encontrado.</li>';
-            return;
-        }
+    friendsList.innerHTML = '';
+    for (const friend of realUsers) {
+        const getChatId = (id1, id2) => id1 < id2 ? `${id1}_${id2}` : `${id2}_${id1}`;
+        const chatId = getChatId(userId, friend.id);
+        const chatDocRef = doc(db, "chats", chatId);
 
-        friendsList.innerHTML = '';
-        realUsers.forEach(friend => {
-            const el = document.createElement('li');
-            el.className = 'friend-item';
-            el.dataset.id = friend.id;
-            el.innerHTML = `
-                <img src="${friend.avatar}" alt="${friend.name}" class="friend-avatar">
-                <div class="friend-info">
-                    <div class="friend-name">${friend.name}</div>
-                    <div class="friend-status">${friend.status}</div>
-                </div>
-            `;
-            el.addEventListener('click', () => {
-                document.querySelectorAll('.friend-item').forEach(i => i.classList.remove('active'));
-                el.classList.add('active');
-                currentFriend = friend;
-                updateChatHeader(friend);
-                loadMessages(friend.id);
-                marcarAmigoAtivo(friend.id); // ← INDICAÇÃO VISUAL
-            });
-            friendsList.appendChild(el);
+        const el = document.createElement('li');
+        el.className = 'friend-item';
+        el.dataset.id = friend.id;
+        el.innerHTML = `
+            <img src="${friend.avatar}" class="friend-avatar">
+            <div class="friend-info">
+                <div class="friend-name">${friend.name}</div>
+                <div class="friend-status">Online</div>
+            </div>
+            <span class="unread-badge" style="display:none;">0</span>
+        `;
+
+        // Listener em tempo real do contador de não lidas
+        onSnapshot(chatDocRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.unreadFor === userId) {
+                    const badge = el.querySelector('.unread-badge');
+                    badge.style.display = 'flex';
+                    badge.textContent = '●'; // bolinha piscando
+                    el.classList.add('active-chat');
+                } else {
+                    el.querySelector('.unread-badge').style.display = 'none';
+                    if (currentFriend?.id !== friend.id) el.classList.remove('active-chat');
+                }
+            }
         });
+
+        el.addEventListener('click', () => {
+            currentFriend = friend;
+            updateChatHeader(friend);
+            loadMessages(friend.id);
+            el.classList.add('active');
+            document.querySelectorAll('.friend-item').forEach(i => {
+                if (i !== el) i.classList.remove('active');
+            });
+        });
+
+        friendsList.appendChild(el);
     }
+}
 
     // ====== ATUALIZAR CABEÇALHO DO CHAT ======
     function updateChatHeader(friend) {
@@ -150,6 +169,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const q = query(messagesRef, orderBy("timestamp"));
 
         return onSnapshot(q, (snapshot) => {
+            // Marcar todas as mensagens como lidas quando abrir o chat
+const markAsRead = async () => {
+    const getChatId = (id1, id2) => id1 < id2 ? `${id1}_${id2}` : `${id2}_${id1}`;
+    const chatId = getChatId(currentUserId, friendId);
+    const chatDocRef = doc(db, "chats", chatId);
+
+    await setDoc(chatDocRef, {
+        unreadFor: currentUserId  // agora quem não leu sou eu? Não, limpa!
+    }, { merge: true });
+
+    // Opcional: marca todas as mensagens como lidas
+    const messagesRef = collection(db, "chats", chatId, "messages");
+    const q = query(messagesRef, where("read", "==", false), where("senderId", "!=", currentUserId));
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    snapshot.forEach(doc => batch.update(doc.ref, { read: true }));
+    await batch.commit();
+};
+markAsRead(); // ← executa ao abrir o chat
             chatMessages.innerHTML = "";
             let temNova = false;
 
