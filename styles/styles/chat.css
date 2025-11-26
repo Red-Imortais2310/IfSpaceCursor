@@ -156,8 +156,31 @@
 /* MENSAGENS RECEBIDAS - AVATAR + NOME EMBAIXO */
 .message.received {
     margin-right: auto;
-    flex-direction: row;
+    flex-direction: column;
     align-items: flex-end;
+}
+/* Container do avatar + nome (sempre pequeno e alinhado) */
+.message-avatar-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    min-width: 50px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Avatar pequeno pra sempre - versão nuclear */
+.message-avatar-container img,
+.message-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    border: 3px solid #fff !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+    flex-shrink: 0 !important;
 }
 
 .message-avatar-container {
@@ -343,4 +366,80 @@
 
 .friend-item {
     position: relative;
+}
+/* ============= AVATAR PEQUENO PRA SEMPRE - VERSÃO NUCLEAR 100% GARANTIDA ============= */
+/* AVATAR PEQUENO PRA SEMPRE – 100% GARANTIDO */
+.message.received {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    max-width: 75% !important;
+}
+
+.message-avatar-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.message-avatar-container img {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    border: 3px solid #fff !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+}
+
+.sender-name-in-message {
+    font-size: 12.5px !important;
+    color: #555 !important;
+    text-align: center !important;
+    max-width: 80px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* BOLINHA DE NÃO LIDA */
+.unread-badge {
+    position: absolute;
+    right: 15px;
+    background: #ff3b30;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+/* NOME + FOTO PEQUENA DO LADO */
+.sender-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+}
+
+.small-avatar-in-message {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
