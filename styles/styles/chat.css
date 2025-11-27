@@ -443,3 +443,62 @@
     border: 2px solid #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
+.sender-name-only {
+    font-weight: 600;
+    color: #555;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+/* ===================== CORREÇÃO PARA IMAGENS DE MÍDIA - REFORÇADA ===================== */
+/* ===================== CORREÇÃO DEFINITIVA DA IMAGEM DE MÍDIA ===================== */
+/* Usa o seletor mais forte possível para garantir a prioridade (tag img + classe) */
+img.message-media {
+    max-width: 250px !important; 
+    max-height: 200px !important;
+    
+    width: auto !important;
+    height: auto !important;
+    display: block !important;
+    object-fit: contain !important;
+    
+    /* Outros estilos visuais (mantidos) */
+    border-radius: 8px !important;
+    margin-top: 5px !important;
+    transition: transform 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+/* Opcional: Adiciona o seletor de contexto para ainda mais força */
+.message-content img.message-media {
+    max-width: 250px !important; 
+    max-height: 200px !important;
+}
+
+.message-content img.message-media:hover {
+    transform: scale(1.02);
+}
+/* ===================== CORREÇÃO DEFINITIVA DA IMAGEM DE MÍDIA - PRIORIDADE MÁXIMA ===================== */
+/* Usa o seletor completo: [ID do contêiner] [classe da bolha] [classe do conteúdo] [tag img + classe] */
+
+/* Garante que o contêiner da imagem não seja absurdamente grande */
+.message-content {
+    max-width: 75% !important; /* Reforça o limite da bolha da mensagem */
+}
+
+/* Força o tamanho da imagem de mídia dentro do fluxo de chat */
+#chatMessages .message-content img.message-media {
+    /* Define o tamanho máximo desejado (harmônico) */
+    max-width: 250px !important; 
+    max-height: 200px !important;
+    
+    /* Garante que a imagem se ajuste e se comporte como um bloco */
+    width: auto !important;
+    height: auto !important;
+    display: block !important;
+    object-fit: contain !important;
+    
+    /* Evita que a margem superior da imagem saia para fora do container da mensagem */
+    margin-top: 5px !important; 
+    border-radius: 8px !important;
+    cursor: pointer;
+}
