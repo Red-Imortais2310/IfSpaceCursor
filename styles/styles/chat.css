@@ -450,7 +450,6 @@
     margin-bottom: 4px;
 }
 /* ===================== CORREÇÃO PARA IMAGENS DE MÍDIA - REFORÇADA ===================== */
-/* ===================== CORREÇÃO DEFINITIVA DA IMAGEM DE MÍDIA ===================== */
 /* Usa o seletor mais forte possível para garantir a prioridade (tag img + classe) */
 img.message-media {
     max-width: 250px !important; 
@@ -501,4 +500,15 @@ img.message-media {
     margin-top: 5px !important; 
     border-radius: 8px !important;
     cursor: pointer;
+}
+/* Avatar padronizado para todos os contextos */
+.friend-item img,
+.chat-user-info img,
+.profile-img,
+.message-avatar {
+    width: 35px !important;
+    height: 35px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    flex-shrink: 0 !important;
 }

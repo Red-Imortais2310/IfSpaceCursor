@@ -1,0 +1,189 @@
+/* styles/welcome.css */
+/* Usa variáveis do global.css quando existirem; define fallback para verde */
+:root {
+  --primary-color: var(--primary-color, #00a400);
+  --primary-light: var(--primary-light, #8ef5b1);
+}
+
+/* Fundo verde claro com leve gradiente */
+.welcome-body {
+  background: linear-gradient(135deg, #e9ffe9 0%, #f6fff6 100%);
+  min-height: 100vh;
+}
+
+/* Centraliza tudo vertical e horizontalmente */
+.welcome-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Cartão simples para texto e botão */
+.welcome-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  padding: 28px 32px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  position: relative;
+}
+
+/* Avatar central com efeitos de luzes/halo */
+.user-avatar {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto 16px;
+}
+
+/* Foto com borda branca e flutuação suave (do seu style de referência) */
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 6px solid #fff;
+  box-shadow: 0 18px 48px rgba(0, 164, 0, 0.25);
+  animation: avatarFloat 4s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+
+/* Garantir tamanho fixo para o avatar da página de boas-vindas
+   Isso evita que imagens carregadas com dimensões grandes sejam exibidas enormes */
+#userProfileImage {
+  width: 150px;
+  height: 150px;
+  object-fit: cover; /* preserva proporção e corte */
+  border-radius: 50%;
+}
+/* Garante que em telas muito pequenas não extrapole seu container */
+@media (max-width: 420px) {
+  #userProfileImage {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* Halo brilhante pulsante (efeito de luzes) atrás da foto */
+.user-avatar::before {
+  content: '';
+  position: absolute;
+  inset: -24px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 200, 90, 0.35), rgba(0, 200, 90, 0.15) 55%, transparent 70%);
+  filter: blur(10px);
+  animation: pulseGlow 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+/* Anel luminoso girando suavemente */
+.user-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -36px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(0, 164, 0, 0), rgba(0, 164, 0, 0.35), rgba(0, 164, 0, 0));
+  animation: spinGlow 6s linear infinite;
+  opacity: 0.6;
+  z-index: 0;
+}
+
+/* Selo/anel com pulso (inspirado no .avatar-ring do seu CSS) */
+.avatar-ring {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00a400, #62e0a1);
+  border: 4px solid #fff;
+  box-shadow: 0 8px 20px rgba(0, 164, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  animation: ringPulse 2s ease-in-out infinite;
+  z-index: 3;
+}
+
+/* Títulos e textos */
+.welcome-card h1 {
+  color: var(--text-primary, #172b4d);
+  margin: 8px 0 6px;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+}
+
+.welcome-card p {
+  color: var(--text-secondary, #546e7a);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* Botão primário (usa seu padrão global de .btn-primary se existir) */
+.btn-primary {
+  background: #00a400;
+  color: #fff;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 8px 20px rgba(0, 164, 0, 0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  background: #019201;
+  box-shadow: 0 12px 28px rgba(0, 164, 0, 0.35);
+}
+
+/* Animações (baseadas no seu bem-vindo.css) */
+@keyframes avatarFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 26px 56px rgba(0, 0, 0, 0.16);
+  }
+}
+
+@keyframes ringPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 8px 20px rgba(0, 164, 0, 0.35);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 12px 30px rgba(0, 164, 0, 0.45);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.65; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+
+@keyframes spinGlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .user-avatar { width: 150px; height: 150px; }
+  .avatar-ring { width: 44px; height: 44px; font-size: 16px; }
+}
+
+

@@ -8,10 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('registerForm');
     const showRegisterFormLink = document.getElementById('showRegisterForm');
     const backToLoginLink = document.getElementById('backToLogin');
-    const selectProfilePictureBtn = document.getElementById('selectRegisterProfilePictureBtn');
-    const profilePictureInput = document.getElementById('registerProfilePictureInput');
-    const profileImagePreview = document.getElementById('registerProfileImagePreview');
-    const uploadStatus = document.getElementById('registerUploadStatus');
+    // Botão opcional para escolher foto (não existe no modal padrão — usamos input direto)
+    const selectProfilePictureBtn = null;
+    const profilePictureInput = document.getElementById('registerProfilePicture');
+    const profileImagePreview = document.getElementById('registerImagePreview');
+    const uploadStatus = document.getElementById('registerErrorMessage');
 
     // Alternar entre formulários
     if (showRegisterFormLink) {
@@ -31,14 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Pré-visualização da imagem de perfil
-    if (selectProfilePictureBtn && profilePictureInput) {
-        selectProfilePictureBtn.addEventListener('click', () => {
-            profilePictureInput.click();
-        });
+    if (profilePictureInput) {
+        if (selectProfilePictureBtn) {
+            selectProfilePictureBtn.addEventListener('click', () => {
+                profilePictureInput.click();
+            });
+        }
 
         profilePictureInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (file) {
+            if (file && profileImagePreview) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     profileImagePreview.src = event.target.result;
@@ -81,10 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const email = document.getElementById('registerEmail').value.trim();
             const password = document.getElementById('registerPassword').value.trim();
-            const confirmPassword = document.getElementById('confirmPassword').value.trim();
+            // No confirmPassword field in the new modal; do not require confirmation here as cadastro.html does not have it
             const file = profilePictureInput ? profilePictureInput.files[0] : null;
 
-            if (!email || !password || !confirmPassword) {
+            if (!email || !password) {
                 uploadStatus.textContent = 'Por favor, preencha todos os campos.';
                 uploadStatus.style.display = 'block';
                 uploadStatus.style.color = 'red';
@@ -92,13 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (password !== confirmPassword) {
-                uploadStatus.textContent = 'As senhas não coincidem.';
-                uploadStatus.style.display = 'block';
-                uploadStatus.style.color = 'red';
-                setTimeout(() => { uploadStatus.style.display = 'none'; }, 5000);
-                return;
-            }
+            // Não há campo de confirmação de senha neste módulo (consistente com cadastro.html)
 
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -119,25 +116,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
                 }
 
-                // Pegar o nome completo do formulário de cadastro
-                  const fullName = document.getElementById('registerFullName').value.trim();
+                                // Pegar os dados do formulário de cadastro (nome dividido)
+                                const firstName = document.getElementById('registerFirstName').value.trim();
+                                const lastName = document.getElementById('registerLastName').value.trim();
+                                const fullName = `${firstName} ${lastName}`.trim();
 
-                if (!fullName) {
-                 uploadStatus.textContent = 'Por favor, digite seu nome completo.';
-                 uploadStatus.style.display = 'block';
-                 uploadStatus.style.color = 'red';
-                return;
-                }
+                                const birthday = document.getElementById('registerBirthday') ? document.getElementById('registerBirthday').value : '';
+                                const gender = document.getElementById('registerGender') ? document.getElementById('registerGender').value : '';
+                                const termsChecked = document.getElementById('registerTerms') ? document.getElementById('registerTerms').checked : true;
 
-                 await setDoc(doc(db, 'users', user.uid), {
-                 fullName: fullName,                    // ← AQUI ESTÁ O NOME!
-                 email: email,
-                 profilePictureUrl: profilePictureUrl,
-                createdAt: serverTimestamp()
-            });
+                                if (!firstName || !lastName) {
+                                        uploadStatus.textContent = 'Por favor, preencha nome e sobrenome.';
+                                        uploadStatus.style.display = 'block';
+                                        uploadStatus.style.color = 'red';
+                                        setTimeout(() => { uploadStatus.style.display = 'none'; }, 5000);
+                                        return;
+                                }
+
+                                if (!termsChecked) {
+                                        uploadStatus.textContent = 'Por favor, aceite os termos de uso.';
+                                        uploadStatus.style.display = 'block';
+                                        uploadStatus.style.color = 'red';
+                                        setTimeout(() => { uploadStatus.style.display = 'none'; }, 5000);
+                                        return;
+                                }
+
+                await setDoc(doc(db, 'users', user.uid), {
+                    fullName: fullName,                    // ← AQUI ESTÁ O NOME!
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    profilePictureUrl: profilePictureUrl,
+                    birthday: birthday,
+                    gender: gender,
+                    createdAt: serverTimestamp()
+                });
 
                 console.log("Dados do usuário salvos no Firestore.");
-                window.location.href = 'feed.html';
+                // Salvar informações no localStorage para a tela de boas-vindas
+                try {
+                    localStorage.setItem('ifspace_fullName', fullName);
+                    localStorage.setItem('ifspace_profilePicture', profilePictureUrl || 'https://placehold.co/100x100?text=AV');
+                    console.log('localStorage salvo:', {
+                        ifspace_fullName: localStorage.getItem('ifspace_fullName'),
+                        ifspace_profilePicture: localStorage.getItem('ifspace_profilePicture')
+                    });
+                } catch (err) {
+                    console.warn('Não foi possível salvar dados no localStorage:', err);
+                }
+                // Redirecionar para a tela de boas-vindas
+                window.location.href = 'bem-vindo.html';
             } catch (error) {
                 console.error("Erro no cadastro:", error);
                 uploadStatus.textContent = `Erro: ${error.message}`;

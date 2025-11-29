@@ -18,19 +18,19 @@
             <form class="register-form" id="registerForm">
                 <div class="form-row">
                     <div class="form-group">
-                        <input type="text" id="firstName" placeholder="Nome" required>
+                        <input type="text" id="firstName" placeholder="Nome" required autocomplete="given-name">
                     </div>
                     <div class="form-group">
-                        <input type="text" id="lastName" placeholder="Sobrenome" required>
+                        <input type="text" id="lastName" placeholder="Sobrenome" required autocomplete="family-name">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <input type="email" id="email" placeholder="Email" required>
+                    <input type="email" id="email" placeholder="Email" required autocomplete="email">
                 </div>
                 
                 <div class="form-group">
-                    <input type="password" id="password" placeholder="Nova senha" required>
+                    <input type="password" id="password" placeholder="Nova senha" required autocomplete="new-password">
                 </div>
                 
                 <!-- Campo de Upload de Foto de Perfil -->
@@ -38,16 +38,16 @@
                     <label for="profilePicture">Foto de Perfil (Opcional):</label>
                     <input type="file" id="profilePicture" accept="image/*">
                     <div id="profilePicturePreview" style="margin-top: 10px; text-align: center;">
-                        <img id="imagePreview" src="https://via.placeholder.com/100?text=Pré-visualização" alt="Pré-visualização da Foto de Perfil" style="max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc;">
+                        <img id="imagePreview" src="https://via.placeholder.com/100?text=Preview" alt="Pré-visualização da Foto de Perfil" style="max-width: 100px; max-height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc;">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <input type="date" id="birthday" required>
+                    <input type="date" id="birthday" required autocomplete="bday">
                 </div>
                 
                 <div class="form-group">
-                    <select id="gender" required>
+                    <select id="gender" required autocomplete="sex">
                         <option value="">Selecione o gênero</option>
                         <option value="masculino">Masculino</option>
                         <option value="feminino">Feminino</option>

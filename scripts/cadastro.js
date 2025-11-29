@@ -4,13 +4,13 @@ import { createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebase
 import { doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const signupForm = document.getElementById('signupForm');
-    const signupEmail = document.getElementById('signupEmail');
-    const signupPassword = document.getElementById('signupPassword');
-    const confirmPassword = document.getElementById('confirmPassword');
-    const profilePictureInput = document.getElementById('registerProfilePictureInput');
-    const profileImagePreview = document.getElementById('registerProfileImagePreview');
-    const uploadStatus = document.getElementById('registerUploadStatus');
+    const signupForm = document.getElementById('registerForm'); // registerForm no HTML
+    const signupEmail = document.getElementById('email');
+    const signupPassword = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirmPassword'); // pode ser nulo se campo não existir
+    const profilePictureInput = document.getElementById('profilePicture');
+    const profileImagePreview = document.getElementById('imagePreview');
+    const uploadStatus = document.getElementById('errorMessage'); // reaproveitar div de erro/aviso
 
     if (profilePictureInput && profileImagePreview) {
         profilePictureInput.addEventListener('change', (e) => {
@@ -19,10 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     profileImagePreview.src = event.target.result;
-                    uploadStatus.textContent = 'Imagem selecionada!';
-                    uploadStatus.style.display = 'block';
-                    uploadStatus.style.color = 'green';
-                    setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+                    if (uploadStatus) {
+                        uploadStatus.textContent = 'Imagem selecionada!';
+                        uploadStatus.style.display = 'block';
+                        uploadStatus.style.color = 'green';
+                        setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+                    }
                 };
                 reader.readAsDataURL(file);
             }
@@ -66,10 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error('Falha ao fazer upload da imagem de perfil.');
                     }
                     console.log("Imagem de perfil enviada:", profilePictureUrl);
-                    uploadStatus.textContent = 'Imagem enviada com sucesso!';
-                    uploadStatus.style.display = 'block';
-                    uploadStatus.style.color = 'green';
-                    setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+                    if (uploadStatus) {
+                        uploadStatus.textContent = 'Imagem enviada com sucesso!';
+                        uploadStatus.style.display = 'block';
+                        uploadStatus.style.color = 'green';
+                        setTimeout(() => { uploadStatus.style.display = 'none'; }, 3000);
+                    }
                 }
 
                                 // ==== PEGAR DADOS DO FORMULÁRIO DE CADASTRO ====
@@ -103,7 +107,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Perfil completo salvo no Firestore com nome:", fullName);
 
                 console.log("Dados do usuário salvos no Firestore.");
-                window.location.href = 'feed.html';
+                // Salvar informações do usuário no localStorage para a tela de boas-vindas
+                try {
+                    localStorage.setItem('ifspace_fullName', fullName);
+                    localStorage.setItem('ifspace_profilePicture', profilePictureUrl || 'https://placehold.co/100x100?text=AV');
+                    console.log('localStorage salvo:', {
+                        ifspace_fullName: localStorage.getItem('ifspace_fullName'),
+                        ifspace_profilePicture: localStorage.getItem('ifspace_profilePicture')
+                    });
+                } catch (err) {
+                    console.warn('Não foi possível salvar dados no localStorage:', err);
+                }
+                // Redirecionar para a tela de boas-vindas
+                window.location.href = 'bem-vindo.html';
             } catch (error) {
                 console.error("Erro no cadastro:", error);
                 uploadStatus.textContent = `Erro: ${error.message}`;

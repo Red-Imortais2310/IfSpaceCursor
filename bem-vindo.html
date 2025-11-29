@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Bem-vindo ao IfSpace - Seu perfil foi criado com sucesso" />
+    <title>Bem-vindo ao IfSpace</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles/global.css" />
+    <link rel="stylesheet" href="styles/bem-vindo.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+</head>
+<body class="welcome-body">
+    <main class="welcome-container animate__animated animate__fadeIn">
+        <article class="welcome-card">
+            <div class="user-avatar">
+                <img id="userProfileImage" src="https://placehold.co/150x150?text=AV" alt="Foto do perfil do usuário" />
+                <span class="avatar-ring" aria-hidden="true">✓</span>
+            </div>
+
+            <h1>Bem-vindo(a), <span id="userName">Usuário</span>!</h1>
+            <p>Seu cadastro foi concluído com sucesso.</p>
+
+            <button id="continueBtn" class="btn-primary">Continuar para o Feed</button>
+        </article>
+    </main>
+
+    <script type="module" src="scripts/bem-vindo.js"></script>
+</body>
+</html>
+
